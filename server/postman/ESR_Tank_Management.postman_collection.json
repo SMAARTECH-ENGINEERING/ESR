@@ -1,0 +1,1647 @@
+{
+  "info": {
+    "_postman_id": "esr-tank-mgmt-v1-collection",
+    "name": "ESR Tank Management System",
+    "description": "## Complete API Test Suite — Full Automation\n\n### Run Order (use Collection Runner)\n1. Health Check\n2. Authentication — registers users, auto-saves tokens\n3. Tank Management — creates tank, auto-saves tankId\n4. IoT Device — sends 3 live readings\n5. Dashboard — verifies realtime data\n6. Reports — daily / weekly / monthly\n7. Error Cases — all negative scenarios\n8. Cleanup — deletes test tank\n\n### Environment Variables (auto-managed)\n- `adminToken` — set after Login Admin\n- `controlRoomToken` — set after Login Control Room\n- `tankId` — set after Create Tank\n- `deviceId` — set after Create Tank\n\n### Quick Start\n```\n1. Import Collection\n2. Import Environment\n3. Select Environment\n4. Click Run Collection\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level: ensure baseUrl is set",
+          "if (!pm.environment.get('baseUrl')) {",
+          "  pm.environment.set('baseUrl', 'http://localhost:5000');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level: every response must have a timestamp field",
+          "pm.test('Response has timestamp', function() {",
+          "  const res = pm.response.json();",
+          "  pm.expect(res).to.have.property('timestamp');",
+          "});"
+        ]
+      }
+    }
+  ],
+
+  "item": [
+
+    {
+      "name": "01 — Health Check",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('System is running', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.expect(res.message).to.include('running');",
+                  "  pm.expect(res).to.have.property('environment');",
+                  "  pm.expect(res).to.have.property('version');",
+                  "});",
+                  "",
+                  "pm.test('Response time < 500ms', function() {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health check — no auth required"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "02 — Authentication",
+      "item": [
+
+        {
+          "name": "Register Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Admin registered — token saved', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.expect(res.data.user.role).to.eql('admin');",
+                  "  pm.expect(res.data).to.have.property('token');",
+                  "  pm.environment.set('adminToken', res.data.token);",
+                  "  pm.environment.set('adminId', res.data.user.id);",
+                  "  console.log('[✓] Admin token saved');",
+                  "});",
+                  "",
+                  "pm.test('User object has required fields', function() {",
+                  "  const user = pm.response.json().data.user;",
+                  "  pm.expect(user).to.have.property('id');",
+                  "  pm.expect(user).to.have.property('name');",
+                  "  pm.expect(user).to.have.property('email');",
+                  "  pm.expect(user).to.have.property('role');",
+                  "  pm.expect(user).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ESR Admin\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a new admin user. Auto-saves adminToken to environment."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Register Control Room User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Control room user registered — token saved', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.expect(res.data.user.role).to.eql('control_room');",
+                  "  pm.environment.set('controlRoomToken', res.data.token);",
+                  "  console.log('[✓] Control room token saved');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Control Room Operator\",\n  \"email\": \"{{controlRoomEmail}}\",\n  \"password\": \"{{controlRoomPassword}}\",\n  \"role\": \"control_room\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a control room user. Auto-saves controlRoomToken."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login successful — token refreshed', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.expect(res.data).to.have.property('token');",
+                  "  pm.expect(res.data.user.role).to.eql('admin');",
+                  "  pm.environment.set('adminToken', res.data.token);",
+                  "  pm.environment.set('adminId', res.data.user.id);",
+                  "  console.log('[✓] Admin JWT refreshed');",
+                  "});",
+                  "",
+                  "pm.test('Token is JWT format', function() {",
+                  "  const token = pm.response.json().data.token;",
+                  "  pm.expect(token.split('.').length).to.eql(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login as admin. Refreshes adminToken in environment."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Login Control Room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Control room login — token refreshed', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.expect(res.data.user.role).to.eql('control_room');",
+                  "  pm.environment.set('controlRoomToken', res.data.token);",
+                  "  console.log('[✓] Control room JWT refreshed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{controlRoomEmail}}\",\n  \"password\": \"{{controlRoomPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Profile (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Profile has required fields', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('name');",
+                  "  pm.expect(data).to.have.property('email');",
+                  "  pm.expect(data).to.have.property('role');",
+                  "  pm.expect(data).to.not.have.property('password');",
+                  "  pm.expect(data.role).to.eql('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "03 — Tank Management",
+      "item": [
+
+        {
+          "name": "Create Tank [ADMIN]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Tank created — IDs saved to environment', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('_id');",
+                  "  pm.expect(data).to.have.property('tankName');",
+                  "  pm.expect(data).to.have.property('deviceId');",
+                  "  pm.expect(data.deviceId).to.eql('DEV001');",
+                  "  pm.expect(data.status).to.eql('inactive');",
+                  "  pm.environment.set('tankId', data._id);",
+                  "  pm.environment.set('deviceId', data.deviceId);",
+                  "  console.log('[✓] tankId saved:', data._id);",
+                  "  console.log('[✓] deviceId saved:', data.deviceId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tankName\": \"Water Tank 1\",\n  \"deviceId\": \"DEV001\",\n  \"location\": \"Zone A — North End\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"]
+            },
+            "description": "Admin creates a new tank. Auto-saves tankId and deviceId."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Create Second Tank [ADMIN]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Second tank created', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.deviceId).to.eql('DEV002');",
+                  "  pm.environment.set('tankId2', data._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tankName\": \"Water Tank 2\",\n  \"deviceId\": \"DEV002\",\n  \"location\": \"Zone B — South End\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get All Tanks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Paginated response structure', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res).to.have.property('data');",
+                  "  pm.expect(res).to.have.property('pagination');",
+                  "  pm.expect(res.data).to.be.an('array');",
+                  "  pm.expect(res.pagination).to.have.property('total');",
+                  "  pm.expect(res.pagination).to.have.property('page');",
+                  "  pm.expect(res.pagination).to.have.property('limit');",
+                  "  pm.expect(res.pagination).to.have.property('pages');",
+                  "  pm.expect(res.pagination.total).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get All Tanks — Filter by Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('All returned tanks have status inactive', function() {",
+                  "  const tanks = pm.response.json().data;",
+                  "  tanks.forEach(function(tank) {",
+                  "    pm.expect(tank.status).to.eql('inactive');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{controlRoomToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks?status=inactive",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"],
+              "query": [
+                { "key": "status", "value": "inactive" }
+              ]
+            },
+            "description": "Control room user can also view tanks (read-only access)"
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Tank by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns correct tank', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data._id).to.eql(pm.environment.get('tankId'));",
+                  "  pm.expect(data).to.have.property('tankName');",
+                  "  pm.expect(data).to.have.property('deviceId');",
+                  "  pm.expect(data).to.have.property('location');",
+                  "  pm.expect(data).to.have.property('status');",
+                  "  pm.expect(data).to.have.property('createdAt');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "{{tankId}}"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Update Tank [ADMIN]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Location updated', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.location).to.include('Updated');",
+                  "  pm.expect(data._id).to.eql(pm.environment.get('tankId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": \"Zone A — Updated Location Block 5\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "{{tankId}}"]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "04 — IoT Device",
+      "item": [
+
+        {
+          "name": "Send IoT Data — Reading 1 (Low)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Data accepted — tank identified', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('tankId');",
+                  "  pm.expect(data).to.have.property('tankName');",
+                  "  pm.expect(data).to.have.property('receivedAt');",
+                  "});",
+                  "",
+                  "pm.test('Response time < 1000ms', function() {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "{{iotSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 95,\n  \"totalizer\": 1000,\n  \"timestamp\": \"2026-05-22T08:00:00.000Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            },
+            "description": "IoT device sends data. Uses X-Device-Secret header (no JWT). Also triggers Socket.IO emit."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Send IoT Data — Reading 2 (Mid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Reading 2 accepted', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "{{iotSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 140,\n  \"totalizer\": 2500,\n  \"timestamp\": \"2026-05-22T12:00:00.000Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Send IoT Data — Reading 3 (High / Latest)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Reading 3 accepted — this will be the daily total', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  console.log('[✓] Latest totalizer = 4500 (this is today daily total)');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "{{iotSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 118,\n  \"totalizer\": 4500,\n  \"timestamp\": \"2026-05-22T23:00:00.000Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Latest Reading",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Latest reading has live data fields', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  if (data) {",
+                  "    pm.expect(data).to.have.property('flowRate');",
+                  "    pm.expect(data).to.have.property('totalizer');",
+                  "    pm.expect(data).to.have.property('timestamp');",
+                  "    pm.expect(data).to.have.property('deviceId');",
+                  "    pm.expect(data.totalizer).to.eql(4500);",
+                  "    console.log('[✓] Latest flowRate:', data.flowRate);",
+                  "    console.log('[✓] Latest totalizer:', data.totalizer);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/latest/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "latest", "{{tankId}}"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Live History (last 1 hour)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('History is an array', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.be.an('array');",
+                  "  console.log('[✓] Live history records:', data.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/history/{{tankId}}?hours=24&limit=60",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "history", "{{tankId}}"],
+              "query": [
+                { "key": "hours", "value": "24" },
+                { "key": "limit", "value": "60" }
+              ]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "05 — Dashboard",
+      "item": [
+
+        {
+          "name": "Get Dashboard Overview",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Dashboard has summary and tanks', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('summary');",
+                  "  pm.expect(data).to.have.property('tanks');",
+                  "  pm.expect(data.tanks).to.be.an('array');",
+                  "  pm.expect(data.summary).to.have.property('totalTanks');",
+                  "  pm.expect(data.summary).to.have.property('online');",
+                  "  pm.expect(data.summary).to.have.property('offline');",
+                  "  pm.expect(data.summary).to.have.property('inactive');",
+                  "  pm.expect(data.summary.totalTanks).to.be.at.least(1);",
+                  "  console.log('[✓] Total tanks:', data.summary.totalTanks);",
+                  "  console.log('[✓] Online:', data.summary.online);",
+                  "});",
+                  "",
+                  "pm.test('Each tank has latestData field', function() {",
+                  "  const tanks = pm.response.json().data.tanks;",
+                  "  tanks.forEach(function(tank) {",
+                  "    pm.expect(tank).to.have.property('latestData');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard"]
+            },
+            "description": "Overview of all tanks with latest readings and status counts"
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Dashboard Overview (Control Room)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 — Control room can view dashboard', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{controlRoomToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard"]
+            },
+            "description": "Control room users have full read access to dashboard"
+          },
+          "response": []
+        },
+
+        {
+          "name": "Get Single Tank Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Tank dashboard has tank, latestData and history', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('tank');",
+                  "  pm.expect(data).to.have.property('latestData');",
+                  "  pm.expect(data).to.have.property('history');",
+                  "  pm.expect(data.history).to.be.an('array');",
+                  "  pm.expect(data.tank._id).to.eql(pm.environment.get('tankId'));",
+                  "  if (data.latestData) {",
+                  "    console.log('[✓] Latest flowRate:', data.latestData.flowRate);",
+                  "    console.log('[✓] Latest totalizer:', data.latestData.totalizer);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "{{tankId}}"]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "06 — Reports",
+      "item": [
+
+        {
+          "name": "Daily Report (Today)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Daily report structure', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('tankId');",
+                  "  pm.expect(data).to.have.property('date');",
+                  "  pm.expect(data).to.have.property('report');",
+                  "  if (data.report) {",
+                  "    pm.expect(data.report).to.have.property('dailyTotal');",
+                  "    pm.expect(data.report).to.have.property('avgFlowRate');",
+                  "    pm.expect(data.report).to.have.property('maxFlowRate');",
+                  "    pm.expect(data.report).to.have.property('totalReadings');",
+                  "    console.log('[✓] Daily Total (latest totalizer):', data.report.dailyTotal);",
+                  "    console.log('[✓] Avg Flow Rate:', data.report.avgFlowRate);",
+                  "  } else {",
+                  "    console.log('[i] No report data yet — run report snapshot job first');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/daily/{{tankId}}?date=2026-05-22",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "daily", "{{tankId}}"],
+              "query": [
+                { "key": "date", "value": "2026-05-22", "description": "ISO date — defaults to today if omitted" }
+              ]
+            },
+            "description": "Daily total = latest totalizer value for the day (totalizer resets at midnight)"
+          },
+          "response": []
+        },
+
+        {
+          "name": "Daily Report (No date — defaults to today)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Date defaults to today', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  const today = new Date().toISOString().split('T')[0];",
+                  "  pm.expect(data.date).to.eql(today);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/daily/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "daily", "{{tankId}}"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Weekly Report (Current Week)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Weekly report structure', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('tankId');",
+                  "  pm.expect(data).to.have.property('weekStart');",
+                  "  pm.expect(data).to.have.property('weekEnd');",
+                  "  pm.expect(data).to.have.property('weeklyTotal');",
+                  "  pm.expect(data).to.have.property('dailyBreakdown');",
+                  "  pm.expect(data.dailyBreakdown).to.be.an('array');",
+                  "  pm.expect(data.weeklyTotal).to.be.a('number');",
+                  "  console.log('[✓] Weekly Total:', data.weeklyTotal);",
+                  "  console.log('[✓] Days with data:', data.dailyBreakdown.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/weekly/{{tankId}}?startDate=2026-05-19",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "weekly", "{{tankId}}"],
+              "query": [
+                { "key": "startDate", "value": "2026-05-19", "description": "Monday of the week (defaults to current week)" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "Monthly Report (May 2026)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Monthly report structure', function() {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.have.property('tankId');",
+                  "  pm.expect(data).to.have.property('year');",
+                  "  pm.expect(data).to.have.property('month');",
+                  "  pm.expect(data).to.have.property('monthlyTotal');",
+                  "  pm.expect(data).to.have.property('dailyBreakdown');",
+                  "  pm.expect(data.dailyBreakdown).to.be.an('array');",
+                  "  pm.expect(data.year).to.eql(2026);",
+                  "  pm.expect(data.month).to.eql(5);",
+                  "  console.log('[✓] Monthly Total:', data.monthlyTotal);",
+                  "  console.log('[✓] Days in report:', data.dailyBreakdown.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/monthly/{{tankId}}?year=2026&month=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "monthly", "{{tankId}}"],
+              "query": [
+                { "key": "year", "value": "2026" },
+                { "key": "month", "value": "5" }
+              ]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "07 — Error Cases",
+      "item": [
+
+        {
+          "name": "[401] Login with Wrong Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 — Invalid credentials', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error response structure', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"WrongPassword999\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[401] Access Protected Route Without Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 — No token', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions token', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res.message.toLowerCase()).to.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[401] Access with Invalid Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 — Invalid token', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error is returned', function() {",
+                  "  pm.expect(pm.response.json().status).to.eql('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer this.is.not.a.valid.jwt.token" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[403] Control Room Tries to Create Tank",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Access denied message', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res.message.toLowerCase()).to.include('access denied');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{controlRoomToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tankName\": \"Unauthorized Tank\",\n  \"deviceId\": \"DEV999\",\n  \"location\": \"Should not be created\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks"]
+            },
+            "description": "Control room role cannot create tanks — admin only"
+          },
+          "response": []
+        },
+
+        {
+          "name": "[403] Control Room Tries to Delete Tank",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 — Forbidden', function() {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{controlRoomToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "{{tankId}}"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[401] IoT Data — Missing Device Secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 — Missing secret header', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Missing header error', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res.message).to.include('X-Device-Secret');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 100,\n  \"totalizer\": 1000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[401] IoT Data — Wrong Device Secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 — Invalid secret', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Invalid secret error', function() {",
+                  "  pm.expect(pm.response.json().status).to.eql('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "wrong-secret-key-12345" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 100,\n  \"totalizer\": 1000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[404] IoT Data — Unknown Device ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 — Device not registered', function() {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Device not found error', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res.message).to.include('DEV_UNKNOWN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "{{iotSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"DEV_UNKNOWN\",\n  \"flowRate\": 100,\n  \"totalizer\": 999\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[400] IoT Data — Negative Flow Rate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — Validation error', function() {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Validation errors array present', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res).to.have.property('errors');",
+                  "  pm.expect(res.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret", "value": "{{iotSecret}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": -50,\n  \"totalizer\": 1000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/iot/data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "iot", "data"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[404] Get Non-existent Tank",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', function() {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Not found message', function() {",
+                  "  pm.expect(pm.response.json().status).to.eql('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/000000000000000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "000000000000000000000000"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[404] Route Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 — Route not found', function() {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error mentions route', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res.message.toLowerCase()).to.include('route not found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/does-not-exist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "does-not-exist"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "[400] Register with Invalid Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 — Validation failed', function() {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Errors array present', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('error');",
+                  "  pm.expect(res).to.have.property('errors');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        }
+
+      ]
+    },
+
+    {
+      "name": "08 — Cleanup",
+      "item": [
+
+        {
+          "name": "Delete Tank 2 [ADMIN]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 — Tank deleted', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Deletion confirmed', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.environment.unset('tankId2');",
+                  "  console.log('[✓] Tank 2 deleted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/{{tankId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "{{tankId2}}"]
+            },
+            "description": "Cleanup Tank 2. Tank 1 (tankId) kept for further testing."
+          },
+          "response": []
+        },
+
+        {
+          "name": "Delete Tank 1 [ADMIN]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 — Tank deleted', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('All environment IDs cleared', function() {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.status).to.eql('success');",
+                  "  pm.environment.unset('tankId');",
+                  "  pm.environment.unset('deviceId');",
+                  "  console.log('[✓] Tank 1 deleted — environment cleaned up');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tanks/{{tankId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tanks", "{{tankId}}"]
+            },
+            "description": "Full cleanup — removes test data. Run this last."
+          },
+          "response": []
+        }
+
+      ]
+    }
+
+  ]
+}

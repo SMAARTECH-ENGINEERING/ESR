@@ -1,0 +1,11 @@
+node_modules/
+logs/
+.env
+.env.local
+.env.production
+dist/
+coverage/
+*.log
+*.pid
+.DS_Store
+Thumbs.db

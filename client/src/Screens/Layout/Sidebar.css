@@ -1,0 +1,14 @@
+.scroll-container::-webkit-scrollbar {
+    width: 0;
+    display: none;
+}
+
+.scroll-container {
+    opacity: 1;
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+  
+.scroll-container.-translate-x-full {
+    opacity: 0;
+}
+  

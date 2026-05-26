@@ -4,9 +4,9 @@ import { decryptData } from '../../Screens/localStorageUtils';
 
 const AuthLayout = ({ children }) => {
   const userData = decryptData();
-  // if (!userData?.token) {
-  //   return <Navigate to="/" replace />;
-  // }
+  if (!userData?.token) {
+    return <Navigate to="/" replace />;
+  }
   return <React.Fragment>{children}</React.Fragment>;
 };
 

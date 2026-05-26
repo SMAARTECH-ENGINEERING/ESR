@@ -111,7 +111,7 @@ export default function DailyReport() {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] p-6">
-      <div className="mx-auto max-w-[1200px]">
+      <div className="mx-auto w-full">
 
         {/* Header */}
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

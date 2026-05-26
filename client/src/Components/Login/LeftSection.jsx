@@ -40,7 +40,7 @@ export default function LeftSection({ logo }) {
   return (
     <div className="flex flex-col justify-center items-center bg-white p-10 transition-all duration-500">
       <div className="mb-6">
-        <img src={logo} alt="logo" className="w-auto h-24 mb-3" /> 
+        <img src={logo} alt="logo" className="w-auto h-24 mb-3" />
       </div>
       <img src={image} alt="Illustration" className="w-auto h-72 mb-6" />
       <h2 className="text-2xl font-bold text-gray-800 text-center mb-4 tracking-wide">

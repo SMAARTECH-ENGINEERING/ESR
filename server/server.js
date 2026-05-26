@@ -15,7 +15,7 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       logger.info(`ESR Tank Management System started`);
       logger.info(`Environment : ${process.env.NODE_ENV || 'development'}`);
       logger.info(`Port        : ${PORT}`);

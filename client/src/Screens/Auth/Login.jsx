@@ -43,7 +43,9 @@ const Login = () => {
 
       if (response.data?.data?.token) {
         encryptData(response.data.data);
-        navigate("/admin/dashboard");
+        // Redirect to role-appropriate home screen
+        const role = response.data.data.user?.role;
+        navigate(role === 'control_room' ? '/admin/report' : '/admin/dashboard');
       } else {
         setError("Invalid response from server. Please try again.");
       }

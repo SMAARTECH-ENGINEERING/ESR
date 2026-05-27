@@ -9,13 +9,12 @@ const router = express.Router();
 // All tank routes require authentication
 router.use(authenticate);
 
-// Both admin and control_room can view tanks
-router.get('/',    getAllTanks);
-router.get('/:id', getTankById);
-
-// Only admin can create, update, delete
-router.post('/',    authorize('admin'), validate(createTankSchema), createTank);
-router.put('/:id',  authorize('admin'), validate(updateTankSchema), updateTank);
-router.delete('/:id', authorize('admin'),                           deleteTank);
+// Only admin can view, create, update, or delete tanks
+// control_room accesses tank data indirectly via /api/dashboard
+router.get('/',       authorize('admin'), getAllTanks);
+router.get('/:id',    authorize('admin'), getTankById);
+router.post('/',      authorize('admin'), validate(createTankSchema), createTank);
+router.put('/:id',    authorize('admin'), validate(updateTankSchema), updateTank);
+router.delete('/:id', authorize('admin'),                             deleteTank);
 
 module.exports = router;

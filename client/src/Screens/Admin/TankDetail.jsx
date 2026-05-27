@@ -184,12 +184,12 @@ export default function TankDetail() {
         {/* Header */}
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <button
+            {/* <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-1 text-sm text-slate-500 hover:text-[#2E3A8C] mb-2 transition"
             >
               <ArrowLeft size={14} /> Back
-            </button>
+            </button> */}
             <h1 className="text-2xl font-bold text-slate-900">{tank.tankName}</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <span className="flex items-center gap-1"><MapPin size={13} /> {tank.location}</span>

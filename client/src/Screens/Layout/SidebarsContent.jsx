@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BiSolidDashboard } from 'react-icons/bi';
-import {  FaUsers, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaUsers, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { MdCardMembership } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User } from 'lucide-react';
+import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User, Radio } from 'lucide-react';
+import { decryptData } from '../localStorageUtils';
+
 const cls = {
   active:
     'flex items-center px-4 py-3 mt-1 text-sm font-semibold tracking-wide text-white bg-[#2E3A8C] rounded-lg transition ease-in-out duration-200 cursor-pointer',
@@ -71,49 +73,85 @@ function SubMenuItem({ child }) {
   );
 }
 
-const SidebarsContent = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+// ─── Menu definitions ────────────────────────────────────────────────────────
+// `roles` controls which users see each item.
+// null / omitted → shown to all authenticated users.
+const ALL_MENU_ITEMS = [
 
-  const allMenuItems = [
-    {
-      label: 'Dashboard',
-      path: '/admin/dashboard',
-      icon: <BiSolidDashboard size={20} />,
-    },
-    {
-      label: 'Tank Management',
-      icon: <Droplets size={20} />,
-      children: [
-        { label: 'All Tanks', path: '/admin/tanks', icon: <Droplets size={15} /> },
-        { label: 'Live Monitor', path: '/admin/report', icon: <BarChart2 size={15} /> },
-      ],
-    },
-    {
-      label: 'Reports',
-      icon: <MdCardMembership size={20} />,
-      children: [
-        { label: 'Daily Report', path: '/admin/reports/daily', icon: <Calendar size={15} /> },
-        { label: 'Weekly Report', path: '/admin/reports/weekly', icon: <CalendarDays size={15} /> },
-        { label: 'Monthly Report', path: '/admin/reports/monthly', icon: <CalendarRange size={15} /> },
-      ],
-    },
-    {
-      label: 'Users',
-      path: '/admin/users',
-      icon: <FaUsers size={20} />,
-    },
-    {
-      label: 'My Profile',
-      path: '/admin/profile',
-      icon: <User size={20} />,
-    },
-  ];
+  // ── Admin: main dashboard ────────────────────────────────────────────
+  {
+    label: 'Dashboard',
+    path: '/admin/dashboard',
+    icon: <BiSolidDashboard size={20} />,
+    roles: ['admin'],
+  },
+
+  // ── Admin: tank management group (All Tanks + Live Monitor) ──────────
+  {
+    label: 'Tank Management',
+    icon: <Droplets size={20} />,
+    roles: ['admin'],
+    children: [
+      { label: 'All Tanks',    path: '/admin/tanks',  icon: <Droplets size={15} /> },
+      { label: 'Live Monitor', path: '/admin/report', icon: <BarChart2 size={15} /> },
+    ],
+  },
+
+  // ── Control Room: Live Monitoring as a top-level item ────────────────
+  {
+    label: 'Live Monitoring',
+    path: '/admin/report',
+    icon: <Radio size={20} />,
+    roles: ['control_room'],
+  },
+
+  // ── Both roles: Reports group ─────────────────────────────────────────
+  {
+    label: 'Reports',
+    icon: <MdCardMembership size={20} />,
+    roles: ['admin', 'control_room'],
+    children: [
+      { label: 'Daily Report',   path: '/admin/reports/daily',   icon: <Calendar size={15} /> },
+      { label: 'Weekly Report',  path: '/admin/reports/weekly',  icon: <CalendarDays size={15} /> },
+      { label: 'Monthly Report', path: '/admin/reports/monthly', icon: <CalendarRange size={15} /> },
+    ],
+  },
+
+  // ── Admin only: user management ────────────────────────────────────────
+  {
+    label: 'Users',
+    path: '/admin/users',
+    icon: <FaUsers size={20} />,
+    roles: ['admin'],
+  },
+
+  // ── Both roles: profile ────────────────────────────────────────────────
+  {
+    label: 'My Profile',
+    path: '/admin/profile',
+    icon: <User size={20} />,
+    roles: ['admin', 'control_room'],
+  },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
+const SidebarsContent = () => {
+  const navigate  = useNavigate();
+  const location  = useLocation();
+
+  // Read user role from encrypted localStorage
+  const userData  = decryptData();
+  const role      = userData?.user?.role;
+
+  // Filter menu items for this role
+  const menuItems = ALL_MENU_ITEMS.filter(
+    (item) => !item.roles || item.roles.includes(role)
+  );
 
   // Auto-open parent if a child is currently active
   const getInitialOpen = () => {
     const open = {};
-    allMenuItems.forEach((item) => {
+    menuItems.forEach((item) => {
       if (item.children) {
         const isChildActive = item.children.some((c) => location.pathname.startsWith(c.path));
         if (isChildActive) open[item.label] = true;
@@ -126,6 +164,7 @@ const SidebarsContent = () => {
 
   useEffect(() => {
     setOpenMenus(getInitialOpen());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const toggleMenu = (label) => {
@@ -139,7 +178,15 @@ const SidebarsContent = () => {
 
   return (
     <div className="mt-2">
-      {allMenuItems.map((item) => (
+      {/* Role badge */}
+      {/* {role === 'control_room' && (
+        <div className="mb-4 mx-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700 flex items-center gap-2">
+          <Radio size={13} className="text-blue-500 animate-pulse" />
+          Control Room Operator
+        </div>
+      )} */}
+
+      {menuItems.map((item) => (
         <MenuItem
           key={item.label}
           item={item}

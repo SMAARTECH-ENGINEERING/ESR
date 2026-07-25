@@ -31,6 +31,12 @@ const iotDataSchema = Joi.object({
     'number.min': 'totalizer cannot be negative',
     'any.required': 'totalizer is required',
   }),
+  // Water level from the tank's level transmitter, as a percentage of full capacity.
+  // Optional so older devices that don't send it yet still pass validation.
+  waterLevelPercent: Joi.number().min(0).max(100).optional().messages({
+    'number.min': 'waterLevelPercent cannot be negative',
+    'number.max': 'waterLevelPercent cannot exceed 100',
+  }),
   // If not provided, defaults to server time
   timestamp: Joi.date().iso().default(() => new Date()),
 });

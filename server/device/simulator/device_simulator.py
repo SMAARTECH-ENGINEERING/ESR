@@ -41,26 +41,35 @@ DEVICES = [
         "device_id":   "DEV001",
         "base_flow":   120.0,    # Base flow rate L/min
         "flow_noise":  15.0,     # ± variation in flow rate
+        "base_level":  75.0,     # Base water level %
+        "level_noise": 3.0,      # ± variation in water level
     },
     {
         "device_id":   "DEV002",
         "base_flow":   95.0,
         "flow_noise":  10.0,
+        "base_level":  60.0,
+        "level_noise": 4.0,
     },
     {
         "device_id":   "DEV003",
         "base_flow":   200.0,
         "flow_noise":  25.0,
+        "base_level":  40.0,
+        "level_noise": 5.0,
     },
 ]
 
 # ─── Device State (per device) ─────────────────────────────────────────────────
 
 class DeviceState:
-    def __init__(self, device_id: str, base_flow: float, flow_noise: float):
-        self.device_id  = device_id
-        self.base_flow  = base_flow
-        self.flow_noise = flow_noise
+    def __init__(self, device_id: str, base_flow: float, flow_noise: float,
+                 base_level: float = 50.0, level_noise: float = 3.0):
+        self.device_id   = device_id
+        self.base_flow   = base_flow
+        self.flow_noise  = flow_noise
+        self.base_level  = base_level
+        self.level_noise = level_noise
         self.totalizer  = 0.0
         self.last_reset_date = datetime.now(timezone.utc).date()
         self.send_count = 0
@@ -74,6 +83,12 @@ class DeviceState:
         noise       = random.uniform(-self.flow_noise, self.flow_noise)
         flow        = max(0.0, self.base_flow * daily_curve + noise)
         return round(flow, 2)
+
+    def get_water_level(self) -> float:
+        """Simulate the level transmitter reading as a % of tank capacity."""
+        noise = random.uniform(-self.level_noise, self.level_noise)
+        level = min(100.0, max(0.0, self.base_level + noise))
+        return round(level, 1)
 
     def update_totalizer(self, flow_rate: float, elapsed_sec: float) -> float:
         """Accumulate totalizer: L = (L/min) × (sec / 60)."""
@@ -92,16 +107,17 @@ class DeviceState:
 
 # ─── HTTP Client ───────────────────────────────────────────────────────────────
 
-def send_iot_data(state: DeviceState, flow_rate: float, totalizer: float) -> bool:
+def send_iot_data(state: DeviceState, flow_rate: float, totalizer: float, water_level: float) -> bool:
     url     = CONFIG["base_url"] + CONFIG["api_path"]
     headers = {
         "Content-Type":    "application/json",
         "X-Device-Secret": CONFIG["iot_secret"],
     }
     payload = {
-        "deviceId":  state.device_id,
-        "flowRate":  flow_rate,
-        "totalizer": totalizer,
+        "deviceId":          state.device_id,
+        "flowRate":          flow_rate,
+        "totalizer":         totalizer,
+        "waterLevelPercent": water_level,
     }
 
     try:
@@ -113,6 +129,7 @@ def send_iot_data(state: DeviceState, flow_rate: float, totalizer: float) -> boo
                 f"  [{state.device_id}] ✓ Sent | "
                 f"flow={flow_rate:.1f} L/min | "
                 f"total={totalizer:.1f} L | "
+                f"level={water_level:.1f}% | "
                 f"tank={data.get('data', {}).get('tankName', '?')}"
             )
             return True
@@ -154,11 +171,12 @@ def run_device(cfg: dict, interval: float):
         state.check_midnight_reset()
 
         # Get current readings
-        flow_rate = state.get_flow_rate()
-        totalizer = state.update_totalizer(flow_rate, elapsed)
+        flow_rate   = state.get_flow_rate()
+        totalizer   = state.update_totalizer(flow_rate, elapsed)
+        water_level = state.get_water_level()
 
         # Send to backend
-        ok = send_iot_data(state, flow_rate, totalizer)
+        ok = send_iot_data(state, flow_rate, totalizer, water_level)
         if ok:
             state.send_count += 1
         else:

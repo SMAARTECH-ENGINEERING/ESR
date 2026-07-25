@@ -23,6 +23,12 @@ const liveDataSchema = new mongoose.Schema(
       required: true,
       min: [0, 'Totalizer cannot be negative'],
     },
+    waterLevelPercent: {
+      type: Number,
+      min: [0, 'Water level cannot be negative'],
+      max: [100, 'Water level cannot exceed 100'],
+      default: null,
+    },
     timestamp: {
       type: Date,
       required: true,

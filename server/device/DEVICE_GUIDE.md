@@ -185,9 +185,10 @@ Physical Device
       │
       │  Body:
       │  {
-      │    "deviceId":  "DEV001",
-      │    "flowRate":  120.50,
-      │    "totalizer": 4500.25
+      │    "deviceId":          "DEV001",
+      │    "flowRate":          120.50,
+      │    "totalizer":         4500.25,
+      │    "waterLevelPercent": 75.4
       │  }
       │
       ▼
@@ -298,8 +299,8 @@ CONFIG = {
 }
 
 DEVICES = [
-    { "device_id": "DEV001", "base_flow": 120.0, "flow_noise": 15.0 },
-    { "device_id": "DEV002", "base_flow": 95.0,  "flow_noise": 10.0 },
+    { "device_id": "DEV001", "base_flow": 120.0, "flow_noise": 15.0, "base_level": 75.0, "level_noise": 3.0 },
+    { "device_id": "DEV002", "base_flow": 95.0,  "flow_noise": 10.0, "base_level": 60.0, "level_noise": 4.0 },
 ]
 ```
 

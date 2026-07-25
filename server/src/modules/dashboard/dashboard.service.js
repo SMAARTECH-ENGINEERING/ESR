@@ -16,7 +16,7 @@ const getDashboardOverview = async () => {
     tanks.map(async (tank) => {
       const latest = await LiveData.findOne({ tankId: tank._id })
         .sort({ timestamp: -1 })
-        .select('flowRate totalizer timestamp')
+        .select('flowRate totalizer waterLevelPercent timestamp')
         .lean();
 
       return { ...tank, latestData: latest || null };

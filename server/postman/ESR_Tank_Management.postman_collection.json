@@ -615,7 +615,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 95,\n  \"totalizer\": 1000,\n  \"timestamp\": \"2026-05-22T08:00:00.000Z\"\n}",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 95,\n  \"totalizer\": 1000,\n  \"waterLevelPercent\": 82.5,\n  \"timestamp\": \"2026-05-22T08:00:00.000Z\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -656,7 +656,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 140,\n  \"totalizer\": 2500,\n  \"timestamp\": \"2026-05-22T12:00:00.000Z\"\n}",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 140,\n  \"totalizer\": 2500,\n  \"waterLevelPercent\": 68.0,\n  \"timestamp\": \"2026-05-22T12:00:00.000Z\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -697,7 +697,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 118,\n  \"totalizer\": 4500,\n  \"timestamp\": \"2026-05-22T23:00:00.000Z\"\n}",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"flowRate\": 118,\n  \"totalizer\": 4500,\n  \"waterLevelPercent\": 75.4,\n  \"timestamp\": \"2026-05-22T23:00:00.000Z\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {

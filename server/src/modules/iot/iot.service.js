@@ -4,7 +4,7 @@ const { emitTankUpdate, emitTankStatusChange } = require('../../config/socket');
 const { AppError } = require('../../middleware/error.middleware');
 const logger = require('../../config/logger');
 
-const processIoTData = async ({ deviceId, flowRate, totalizer, timestamp }) => {
+const processIoTData = async ({ deviceId, flowRate, totalizer, waterLevelPercent, timestamp }) => {
   const tank = await Tank.findOne({ deviceId: deviceId.toUpperCase() });
   if (!tank) {
     throw new AppError(`No tank registered for device ID: ${deviceId}`, 404);
@@ -18,6 +18,7 @@ const processIoTData = async ({ deviceId, flowRate, totalizer, timestamp }) => {
     deviceId:  deviceId.toUpperCase(),
     flowRate,
     totalizer,
+    waterLevelPercent,
     timestamp: dataTimestamp,
   });
 
@@ -37,6 +38,7 @@ const processIoTData = async ({ deviceId, flowRate, totalizer, timestamp }) => {
     location:  updatedTank.location,
     flowRate,
     totalizer,
+    waterLevelPercent,
     status:    'online',
     lastSeen:  dataTimestamp,
     timestamp: dataTimestamp,
@@ -49,7 +51,7 @@ const processIoTData = async ({ deviceId, flowRate, totalizer, timestamp }) => {
     emitTankStatusChange(tank._id.toString(), 'online', updatedTank.tankName);
   }
 
-  logger.info(`IoT [${deviceId}] flowRate=${flowRate} totalizer=${totalizer}`);
+  logger.info(`IoT [${deviceId}] flowRate=${flowRate} totalizer=${totalizer} waterLevelPercent=${waterLevelPercent}`);
 
   return { tank: updatedTank };
 };

@@ -4,7 +4,6 @@ import { MapPin, Wifi, WifiOff, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SkeletonCard from '../../Components/Admin/SkeletonCard';
 import api from '../../utils/api';
-import { DUMMY_TANKS } from '../../utils/dummyData';
 
 const STATUS_STYLES = {
   online: { dot: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-50 border-emerald-200' },
@@ -44,7 +43,7 @@ function TankCard({ tank, onClick }) {
         </p>
 
         {/* Live data row */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="bg-blue-50 rounded-lg p-2 text-center">
             <p className="text-[10px] text-blue-500 font-medium uppercase tracking-wide">Flow Rate</p>
             <p className="text-sm font-bold text-blue-700">
@@ -55,6 +54,12 @@ function TankCard({ tank, onClick }) {
             <p className="text-[10px] text-emerald-500 font-medium uppercase tracking-wide">Totalizer</p>
             <p className="text-sm font-bold text-emerald-700">
               {tank.latestData?.totalizer != null ? `${(tank.latestData.totalizer / 1000).toFixed(1)}kL` : '—'}
+            </p>
+          </div>
+          <div className="bg-amber-50 rounded-lg p-2 text-center">
+            <p className="text-[10px] text-amber-600 font-medium uppercase tracking-wide">Level</p>
+            <p className="text-sm font-bold text-amber-700">
+              {tank.latestData?.waterLevelPercent != null ? `${tank.latestData.waterLevelPercent}%` : '—'}
             </p>
           </div>
         </div>
@@ -89,7 +94,7 @@ function Report() {
         const res = await api.get('/dashboard');
         setTanks(res.data.data?.tanks || []);
       } catch {
-        setTanks(DUMMY_TANKS);
+        setTanks([]);
       } finally {
         setLoading(false);
       }

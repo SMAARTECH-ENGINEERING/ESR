@@ -11,7 +11,6 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../../utils/api';
-import { DUMMY_TANKS, DUMMY_WEEKLY_REPORT } from '../../utils/dummyData';
 
 const StatBox = ({ label, value, unit, icon, color }) => (
   <div className="border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
@@ -44,13 +43,13 @@ export default function WeeklyReport() {
   const [tanksLoading, setTanksLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/tanks', { params: { limit: 100 } })
+    api.get('/dashboard')
       .then((r) => {
-        const list = r.data.data || [];
+        const list = r.data.data?.tanks || [];
         setTanks(list);
         if (list.length > 0) setSelectedTank(list[0]._id);
       })
-      .catch(() => { setTanks(DUMMY_TANKS); setSelectedTank(DUMMY_TANKS[0]._id); })
+      .catch(() => setTanks([]))
       .finally(() => setTanksLoading(false));
   }, []);
 
@@ -61,8 +60,8 @@ export default function WeeklyReport() {
       setError(null);
       const res = await api.get(`/reports/weekly/${selectedTank}`, { params: { startDate } });
       setReport(res.data.data);
-    } catch {
-      setReport(DUMMY_WEEKLY_REPORT);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load report.');
     } finally {
       setLoading(false);
     }

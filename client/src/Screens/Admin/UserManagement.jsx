@@ -11,7 +11,6 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Chip } from '@mui/material';
 import api from '../../utils/api';
-import { DUMMY_USERS } from '../../utils/dummyData';
 
 const ROLE_CHIP = { admin: 'primary', control_room: 'default' };
 const ROLE_LABEL = { admin: 'Admin', control_room: 'Control Room' };
@@ -35,7 +34,7 @@ function UserManagement() {
       const res = await api.get('/auth/users');
       setUsers(res.data.data || []);
     } catch {
-      setUsers(DUMMY_USERS);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

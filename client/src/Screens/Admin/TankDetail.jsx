@@ -5,10 +5,9 @@ import {
   ResponsiveContainer, ComposedChart, Area, Line,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
-import { Wifi, WifiOff, MapPin, Cpu, ArrowLeft, RefreshCw, Droplets, Activity } from 'lucide-react';
+import { Wifi, WifiOff, MapPin, Cpu, ArrowLeft, RefreshCw, Droplets, Activity, Gauge } from 'lucide-react';
 import io from 'socket.io-client';
 import api from '../../utils/api';
-import { DUMMY_TANKS, generateHistory } from '../../utils/dummyData';
 
 const STATUS_BG = {
   online: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -75,6 +74,7 @@ export default function TankDetail() {
         time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         flowRate: Number((r.flowRate || 0).toFixed(2)),
         totalizer: r.totalizer || 0,
+        waterLevelPercent: r.waterLevelPercent ?? null,
         timestamp: new Date(r.timestamp).getTime(),
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
@@ -95,12 +95,8 @@ export default function TankDetail() {
       setLatestData(ld);
       setHistory(formatHistory(histRes.data.data || []));
       setLastUpdated(new Date());
-    } catch {
-      const dummyTank = DUMMY_TANKS.find((t) => t._id === id) || DUMMY_TANKS[0];
-      setTank(dummyTank);
-      setLatestData(dummyTank.latestData);
-      setHistory(generateHistory(dummyTank.latestData?.flowRate ?? 2.5, dummyTank.latestData?.totalizer ?? 50000));
-      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load tank data.');
     } finally {
       setLoading(false);
     }
@@ -121,13 +117,19 @@ export default function TankDetail() {
 
     socket.on('tank:data', (data) => {
       if (data.tankId !== id) return;
-      setLatestData({ flowRate: data.flowRate, totalizer: data.totalizer, timestamp: data.timestamp });
+      setLatestData({
+        flowRate: data.flowRate,
+        totalizer: data.totalizer,
+        waterLevelPercent: data.waterLevelPercent,
+        timestamp: data.timestamp,
+      });
       setLastUpdated(new Date());
       setHistory((prev) => {
         const point = {
           time: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           flowRate: Number((data.flowRate || 0).toFixed(2)),
           totalizer: data.totalizer || 0,
+          waterLevelPercent: data.waterLevelPercent ?? null,
           timestamp: new Date(data.timestamp).getTime(),
         };
         const updated = [...prev, point];
@@ -222,8 +224,8 @@ export default function TankDetail() {
           </div>
         </div>
 
-        {/* 2 Metric Cards */}
-        <div className="grid gap-5 sm:grid-cols-2">
+        {/* 3 Metric Cards */}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard
             label="Flow Rate"
             value={latestData?.flowRate != null ? latestData.flowRate.toFixed(2) : null}
@@ -241,6 +243,15 @@ export default function TankDetail() {
             icon={<Activity size={22} className="text-emerald-600" />}
             gradient="from-emerald-50 to-green-100"
             index={1}
+          />
+          <MetricCard
+            label="Water Level"
+            value={latestData?.waterLevelPercent != null ? Number(latestData.waterLevelPercent).toFixed(1) : null}
+            unit="%"
+            sub="Transmitter"
+            icon={<Gauge size={22} className="text-amber-600" />}
+            gradient="from-amber-50 to-orange-100"
+            index={2}
           />
         </div>
 

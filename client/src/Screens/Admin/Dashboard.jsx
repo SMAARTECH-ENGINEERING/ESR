@@ -7,7 +7,6 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { DUMMY_SUMMARY, DUMMY_TANKS } from '../../utils/dummyData';
 
 const STATUS_COLORS = { online: '#10b981', offline: '#ef4444', inactive: '#94a3b8' };
 const PIE_COLORS = ['#10b981', '#ef4444', '#94a3b8'];
@@ -54,10 +53,8 @@ export default function Dashboard() {
       setSummary(s);
       setTanks(t || []);
       setLastUpdated(new Date());
-    } catch {
-      setSummary(DUMMY_SUMMARY);
-      setTanks(DUMMY_TANKS);
-      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load dashboard data.');
     } finally {
       setLoading(false);
     }
@@ -292,13 +289,14 @@ export default function Dashboard() {
                   <th className="px-6 py-3 text-left font-semibold text-slate-600">Status</th>
                   <th className="px-6 py-3 text-right font-semibold text-slate-600">Flow Rate</th>
                   <th className="px-6 py-3 text-right font-semibold text-slate-600">Totalizer</th>
+                  <th className="px-6 py-3 text-right font-semibold text-slate-600">Water Level</th>
                   <th className="px-6 py-3 text-center font-semibold text-slate-600">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {tanks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400">No tanks found</td>
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-400">No tanks found</td>
                   </tr>
                 ) : (
                   tanks.map((tank) => (
@@ -323,6 +321,9 @@ export default function Dashboard() {
                       </td>
                       <td className="px-6 py-3 text-right text-slate-700">
                         {tank.latestData ? `${tank.latestData.totalizer?.toLocaleString() ?? '-'} L` : '—'}
+                      </td>
+                      <td className="px-6 py-3 text-right text-slate-700">
+                        {tank.latestData?.waterLevelPercent != null ? `${tank.latestData.waterLevelPercent}%` : '—'}
                       </td>
                       <td className="px-6 py-3 text-center">
                         <button

@@ -4,7 +4,7 @@ import { BiSolidDashboard } from 'react-icons/bi';
 import { FaUsers, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { MdCardMembership } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User, Radio } from 'lucide-react';
+import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User, Radio, Send } from 'lucide-react';
 import { decryptData } from '../localStorageUtils';
 
 const cls = {
@@ -122,6 +122,14 @@ const ALL_MENU_ITEMS = [
     label: 'Users',
     path: '/admin/users',
     icon: <FaUsers size={20} />,
+    roles: ['admin'],
+  },
+
+  // ── Admin only: IWCRCM government reporting status ────────────────────
+  {
+    label: 'IWCRCM',
+    path: '/admin/iwcrcm',
+    icon: <Send size={20} />,
     roles: ['admin'],
   },
 

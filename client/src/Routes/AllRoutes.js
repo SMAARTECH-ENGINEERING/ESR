@@ -12,6 +12,7 @@ import WeeklyReport from '../Screens/Admin/WeeklyReport';
 import MonthlyReport from '../Screens/Admin/MonthlyReport';
 import Profile      from '../Screens/Admin/Profile';
 import UserManagement from '../Screens/Admin/UserManagement';
+import IwcrcmStatus from '../Screens/Admin/IwcrcmStatus';
 
 import Login  from '../Screens/Auth/Login';
 import SignUp from '../Screens/Auth/SignUp';
@@ -56,6 +57,7 @@ const userRoutes = [
   // ── Admin-only (data table + user management) ──────────────────────
   { path: '/admin/data',  component: <Master />,         roles: ['admin'] },
   { path: '/admin/users', component: <UserManagement />, roles: ['admin'] },
+  { path: '/admin/iwcrcm', component: <IwcrcmStatus />,  roles: ['admin'] },
 
   // ── Profile: both roles ────────────────────────────────────────────
   { path: '/admin/profile', component: <Profile />, roles: ['admin', 'control_room'] },

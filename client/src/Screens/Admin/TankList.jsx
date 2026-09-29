@@ -20,7 +20,18 @@ const STATUS_COLORS = {
   inactive: 'bg-slate-100 text-slate-500',
 };
 
-const emptyForm = { tankName: '', deviceId: '', location: '', status: 'inactive' };
+const emptyIwcrcm = { enabled: false, deviceId: '', longitude: '', latitude: '' };
+const emptyForm = { tankName: '', deviceId: '', location: '', status: 'inactive', iwcrcm: emptyIwcrcm };
+
+const IWCRCM_ID_PATTERN = /^[A-Z0-9]{1,11}$/;
+
+// Form strings → API shape (empty inputs become null)
+const toIwcrcmPayload = (iw) => ({
+  enabled: !!iw.enabled,
+  deviceId: iw.deviceId.trim().toUpperCase() || null,
+  longitude: iw.longitude === '' ? null : Number(iw.longitude),
+  latitude: iw.latitude === '' ? null : Number(iw.latitude),
+});
 
 function TankList() {
   const navigate = useNavigate();
@@ -70,6 +81,17 @@ function TankList() {
     if (!form.tankName.trim()) errs.tankName = 'Tank name is required';
     if (!form.deviceId.trim()) errs.deviceId = 'Device ID is required';
     if (!form.location.trim()) errs.location = 'Location is required';
+
+    const iw = form.iwcrcm;
+    const iwId = iw.deviceId.trim().toUpperCase();
+    if (iwId && !IWCRCM_ID_PATTERN.test(iwId)) errs.iwcrcmDeviceId = 'Must be 1-11 characters, A-Z and 0-9 only';
+    if (iw.longitude !== '' && !(Math.abs(Number(iw.longitude)) <= 180)) errs.iwcrcmLongitude = 'Longitude must be between -180 and 180';
+    if (iw.latitude !== '' && !(Math.abs(Number(iw.latitude)) <= 90)) errs.iwcrcmLatitude = 'Latitude must be between -90 and 90';
+    if (iw.enabled) {
+      if (!iwId) errs.iwcrcmDeviceId = 'Required when IWCRCM is enabled';
+      if (iw.longitude === '') errs.iwcrcmLongitude = 'Required when IWCRCM is enabled';
+      if (iw.latitude === '') errs.iwcrcmLatitude = 'Required when IWCRCM is enabled';
+    }
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -83,7 +105,19 @@ function TankList() {
 
   const openEditModal = (tank) => {
     setEditingTank(tank);
-    setForm({ tankName: tank.tankName, deviceId: tank.deviceId, location: tank.location, status: tank.status });
+    const iw = tank.iwcrcm || {};
+    setForm({
+      tankName: tank.tankName,
+      deviceId: tank.deviceId,
+      location: tank.location,
+      status: tank.status,
+      iwcrcm: {
+        enabled: !!iw.enabled,
+        deviceId: iw.deviceId || '',
+        longitude: iw.longitude ?? '',
+        latitude: iw.latitude ?? '',
+      },
+    });
     setFormErrors({});
     setShowModal(true);
   };
@@ -93,11 +127,12 @@ function TankList() {
     if (!validateForm()) return;
     try {
       setSubmitting(true);
+      const body = { ...form, iwcrcm: toIwcrcmPayload(form.iwcrcm) };
       if (editingTank) {
-        await api.put(`/tanks/${editingTank._id}`, form);
+        await api.put(`/tanks/${editingTank._id}`, body);
         toast.success('Tank updated successfully.');
       } else {
-        await api.post('/tanks', form);
+        await api.post('/tanks', body);
         toast.success('Tank created successfully.');
       }
       setShowModal(false);
@@ -321,7 +356,7 @@ function TankList() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-900">
@@ -360,6 +395,37 @@ function TankList() {
                   <option value="online">Online</option>
                   <option value="offline">Offline</option>
                 </select>
+              </div>
+
+              {/* IWCRCM government reporting (optional) */}
+              <div className="border border-slate-200 rounded-lg p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.iwcrcm.enabled}
+                    onChange={(e) => setForm((p) => ({ ...p, iwcrcm: { ...p.iwcrcm, enabled: e.target.checked } }))}
+                    className="h-4 w-4 accent-[#2E3A8C]"
+                  />
+                  Send data to IWCRCM
+                </label>
+                {[
+                  { label: 'IWCRCM Device ID', name: 'deviceId', err: 'iwcrcmDeviceId', placeholder: 'e.g. TNXWFM003 (issued by department)' },
+                  { label: 'Longitude', name: 'longitude', err: 'iwcrcmLongitude', placeholder: 'e.g. 85.8245', type: 'number' },
+                  { label: 'Latitude', name: 'latitude', err: 'iwcrcmLatitude', placeholder: 'e.g. 20.2961', type: 'number' },
+                ].map(({ label, name, err, placeholder, type }) => (
+                  <div key={name}>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+                    <input
+                      type={type || 'text'}
+                      step="any"
+                      value={form.iwcrcm[name]}
+                      onChange={(e) => setForm((p) => ({ ...p, iwcrcm: { ...p.iwcrcm, [name]: e.target.value } }))}
+                      placeholder={placeholder}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E3A8C] transition ${formErrors[err] ? 'border-red-400' : 'border-slate-300'}`}
+                    />
+                    {formErrors[err] && <p className="text-xs text-red-500 mt-1">{formErrors[err]}</p>}
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-3 pt-2">

@@ -161,7 +161,7 @@ ESR-NEW/
     │   │   └── dashboard.route.js   # GET /api/dashboard, GET /api/dashboard/:tankId
     │   │
     │   └── reports/
-    │       ├── report.model.js      # ReportData schema with TTL index (3 months)
+    │       ├── report.model.js      # ReportData schema (TTL managed by config/retention.js)
     │       ├── report.validation.js # Joi schemas for date/month query params
     │       ├── report.service.js    # Aggregation pipelines — daily / weekly / monthly
     │       ├── report.controller.js
@@ -174,8 +174,13 @@ ESR-NEW/
     │   ├── rateLimiter.middleware.js # Global / auth / IoT rate limiters
     │   └── iot.middleware.js        # X-Device-Secret header verification
     │
+    ├── config/retention.js          # DATA_RETENTION_DAYS (default 120) → TTL indexes + purge
+    │
+    ├── integrations/iwcrcm/         # IWCRCM government reporting (see ../IWCRCM_INTEGRATION.md)
+    │
     ├── jobs/
-    │   └── cleanup.job.js           # 3 cron jobs (status check, snapshot, cleanup)
+    │   ├── cleanup.job.js           # 3 cron jobs (status check, snapshot, cleanup)
+    │   └── iwcrcm.job.js            # IWCRCM transmission scheduler (only when IWCRCM_ENABLED=true)
     │
     ├── sockets/
     │   └── socket.handler.js        # High-level broadcast helpers
@@ -200,7 +205,9 @@ MongoDB Atlas
 ├── users          — system user accounts
 ├── tanks          — registered ESR tanks
 ├── live_data      — 1-minute IoT readings (TTL: 24 hours)
-└── report_data    — 30-minute snapshots (TTL: 3 months)
+├── report_data    — 30-minute snapshots (TTL: DATA_RETENTION_DAYS, default 120 days)
+├── iwcrcm_transmissions — IWCRCM outbox (TTL: DATA_RETENTION_DAYS)
+└── iwcrcm_credentials   — encrypted IWCRCM auth keys (no TTL)
 ```
 
 ---
@@ -234,6 +241,12 @@ Indexes:
   location:  String,          // max 200 chars
   status:    String,          // "online" | "offline" | "inactive"
   lastSeen:  Date,            // updated on every IoT reading
+  iwcrcm: {                   // optional IWCRCM mapping
+    enabled:   Boolean,
+    deviceId:  String,        // department-issued, 1–11 chars [A-Z0-9]
+    longitude: Number,
+    latitude:  Number
+  },
   createdAt: Date,
   updatedAt: Date
 }
@@ -242,6 +255,8 @@ Indexes:
   { deviceId: 1 }  unique       — O(1) IoT device lookup
   { status: 1 }                 — filter by online/offline
   { lastSeen: -1 }              — offline detection query
+  { 'iwcrcm.deviceId': 1 } unique (partial) — one tank per IWCRCM device
+  { 'iwcrcm.enabled': 1 }       — IWCRCM scheduler lookup
 ```
 
 ---
@@ -284,7 +299,7 @@ Indexes:
 Indexes:
   { tankId: 1, createdAt: -1 }     — date-range report queries
   { tankId: 1, intervalTime: -1 }  — interval-based aggregation
-  { createdAt: 1 }  TTL: 7776000s  — MongoDB auto-deletes after 90 days
+  { createdAt: 1 }  TTL: 10368000s — auto-deletes after 120 days (DATA_RETENTION_DAYS)
 ```
 
 ---
@@ -653,20 +668,27 @@ Get all tanks where status = 'online'
 
 | Collection | Retention | Mechanism |
 |---|---|---|
-| `live_data` | **24 hours** | MongoDB TTL index on `timestamp` field |
-| `report_data` | **3 months** | MongoDB TTL index on `createdAt` + daily cron job |
+| `live_data` | **24 hours** | MongoDB TTL index on `timestamp` field (short live buffer) |
+| `report_data` | **120 days** (`DATA_RETENTION_DAYS`) | MongoDB TTL index on `createdAt` + daily cron job |
+| `iwcrcm_transmissions` | **120 days** (`DATA_RETENTION_DAYS`) | MongoDB TTL index on `createdAt` + daily cron job |
+| `users`, `tanks`, `iwcrcm_credentials` | Never auto-deleted | — |
 
-### Why Two Mechanisms for Report Data?
+The retention period is configured once in `.env` (`DATA_RETENTION_DAYS`, default `120`) and applied by `src/config/retention.js`:
+
+- **At startup** `ensureRetentionIndexes()` makes each TTL index match the configured value. It drops the legacy `ttl_report_data_3months` (90-day) index and creates `ttl_report_data_retention`. This uses dropIndex + createIndex (Atlas `readWrite` role is enough), is idempotent, and is safe to run from several PM2 instances.
+- **Daily at 00:00** `purgeExpiredData()` deletes anything older than exactly N days and logs the counts.
+
+### Why Two Mechanisms?
 
 The TTL index is async — MongoDB's TTL monitor runs every **60 seconds** and deletions are not guaranteed to happen at the exact expiry moment. The midnight cron job (`0 0 * * *`) provides a predictable, accountable cleanup with logging.
 
 ```
-TTL Index (report_data)
-  expireAfterSeconds: 7776000   →  90 days × 86400 seconds
+TTL Index (report_data, iwcrcm_transmissions)
+  expireAfterSeconds: 10368000  →  120 days × 86400 seconds
 
-Cron cleanup (report_data)  — daily at 00:00
-  deleteMany({ createdAt: { $lt: now - 3 months } })
-  → logs exact count deleted
+Cron cleanup — daily at 00:00
+  deleteMany({ createdAt: { $lt: now - 120 days } })
+  → logs exact count deleted per collection
 ```
 
 ---
@@ -686,8 +708,12 @@ Three scheduled jobs run in the same Node.js process:
 │ report-snapshot      │ */30 * * * *     │ For each online tank: reads latest    │
 │                      │ (every 30 min)   │ LiveData → inserts into report_data   │
 ├──────────────────────┼──────────────────┼──────────────────────────────────────┤
-│ report-cleanup       │ 0 0 * * *        │ Deletes report_data older than        │
-│                      │ (midnight daily) │ 3 months. Logs count deleted.         │
+│ report-cleanup       │ 0 0 * * *        │ Deletes report_data + IWCRCM outbox   │
+│                      │ (midnight daily) │ older than DATA_RETENTION_DAYS (120). │
+├──────────────────────┼──────────────────┼──────────────────────────────────────┤
+│ iwcrcm-transmission  │ * * * * *        │ Only when IWCRCM_ENABLED=true. Queues │
+│                      │ (every 1 min)    │ 1 reading/tank per send interval (60  │
+│                      │                  │ min) and sends due/retry records.     │
 └──────────────────────┴──────────────────┴──────────────────────────────────────┘
 ```
 
@@ -727,7 +753,7 @@ live_data        { deviceId: 1, timestamp: -1 } Device history
 live_data        { timestamp: 1 }  TTL          Auto-expiry (24h)
 report_data      { tankId: 1, createdAt: -1 }   Report date range queries
 report_data      { tankId: 1, intervalTime: -1} Aggregation queries
-report_data      { createdAt: 1 }  TTL          Auto-expiry (3 months)
+report_data      { createdAt: 1 }  TTL          Auto-expiry (DATA_RETENTION_DAYS, 120)
 ```
 
 ### Lean Queries

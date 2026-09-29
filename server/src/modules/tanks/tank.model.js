@@ -35,11 +35,33 @@ const tankSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Optional IWCRCM (Industrial Water Consumption and Revenue Monitoring)
+    // mapping. deviceId is the department-issued IWCRCM id, which may differ
+    // from the local deviceId above. Coordinates are fixed per tank because
+    // the meters have no GPS.
+    iwcrcm: {
+      enabled:   { type: Boolean, default: false },
+      deviceId:  {
+        type: String,
+        trim: true,
+        uppercase: true,
+        match: [/^[A-Z0-9]{1,11}$/, 'IWCRCM device ID must be 1-11 characters [A-Z0-9]'],
+      },
+      longitude: { type: Number, min: -180, max: 180 },
+      latitude:  { type: Number, min: -90,  max: 90 },
+      _id: false,
+    },
   },
   { timestamps: true, versionKey: false }
 );
 
 tankSchema.index({ status: 1 });
 tankSchema.index({ lastSeen: -1 });
+// Each IWCRCM device id may belong to one tank only (so device data never mixes)
+tankSchema.index(
+  { 'iwcrcm.deviceId': 1 },
+  { unique: true, partialFilterExpression: { 'iwcrcm.deviceId': { $type: 'string' } }, name: 'uniq_iwcrcm_device_id' }
+);
+tankSchema.index({ 'iwcrcm.enabled': 1 });
 
 module.exports = mongoose.model('Tank', tankSchema);

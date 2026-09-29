@@ -19,6 +19,24 @@ const validate = (schema) => (req, res, next) => {
   next();
 };
 
+// Optional IWCRCM mapping — when enabled, id + coordinates are mandatory
+const iwcrcmSchema = Joi.object({
+  enabled: Joi.boolean().default(false),
+  deviceId: Joi.string().trim().uppercase().pattern(/^[A-Z0-9]{1,11}$/).allow('', null)
+    .when('enabled', { is: true, then: Joi.required().invalid('', null) })
+    .messages({
+      'string.pattern.base': 'IWCRCM device ID must be 1-11 characters [A-Z0-9]',
+      'any.required': 'IWCRCM device ID is required when IWCRCM is enabled',
+      'any.invalid': 'IWCRCM device ID is required when IWCRCM is enabled',
+    }),
+  longitude: Joi.number().min(-180).max(180).allow(null)
+    .when('enabled', { is: true, then: Joi.required().invalid(null) })
+    .messages({ 'any.required': 'Longitude is required when IWCRCM is enabled', 'any.invalid': 'Longitude is required when IWCRCM is enabled' }),
+  latitude: Joi.number().min(-90).max(90).allow(null)
+    .when('enabled', { is: true, then: Joi.required().invalid(null) })
+    .messages({ 'any.required': 'Latitude is required when IWCRCM is enabled', 'any.invalid': 'Latitude is required when IWCRCM is enabled' }),
+});
+
 const createTankSchema = Joi.object({
   tankName: Joi.string().min(2).max(100).trim().required().messages({
     'string.min': 'Tank name must be at least 2 characters',
@@ -32,6 +50,7 @@ const createTankSchema = Joi.object({
     'any.required': 'Location is required',
   }),
   status: Joi.string().valid('online', 'offline', 'inactive').default('inactive'),
+  iwcrcm: iwcrcmSchema.optional(),
 });
 
 const updateTankSchema = Joi.object({
@@ -39,6 +58,7 @@ const updateTankSchema = Joi.object({
   deviceId: Joi.string().min(3).max(50).trim().uppercase(),
   location: Joi.string().max(200).trim(),
   status:   Joi.string().valid('online', 'offline', 'inactive'),
+  iwcrcm:   iwcrcmSchema,
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update',
 });

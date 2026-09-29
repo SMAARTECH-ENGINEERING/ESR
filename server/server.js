@@ -5,6 +5,8 @@ const { initializeSocket } = require('./src/config/socket');
 const { connectDB } = require('./src/config/database');
 const logger = require('./src/config/logger');
 const { startCleanupJobs } = require('./src/jobs/cleanup.job');
+const { startIwcrcmJob } = require('./src/jobs/iwcrcm.job');
+const { ensureRetentionIndexes, getRetentionDays } = require('./src/config/retention');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -22,7 +24,18 @@ const startServer = async () => {
       logger.info(`Health Check: http://localhost:${PORT}/health`);
     });
 
+    // Apply DATA_RETENTION_DAYS to TTL indexes (replaces the legacy 90-day index)
+    await ensureRetentionIndexes();
+    logger.info(`Data retention: ${getRetentionDays()} days`);
+
     startCleanupJobs();
+
+    // IWCRCM failures must never stop local monitoring
+    try {
+      startIwcrcmJob();
+    } catch (error) {
+      logger.error(`IWCRCM integration failed to start: ${error.message}`);
+    }
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

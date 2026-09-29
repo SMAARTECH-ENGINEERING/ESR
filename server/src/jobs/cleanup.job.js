@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const Tank = require('../modules/tanks/tank.model');
-const ReportData = require('../modules/reports/report.model');
 const { emitTankStatusChange } = require('../config/socket');
+const { getRetentionDays, purgeExpiredData } = require('../config/retention');
 const { saveReportSnapshot } = require('../modules/reports/report.service');
 const logger = require('../config/logger');
 
@@ -35,21 +35,18 @@ const startCleanupJobs = () => {
     await saveReportSnapshot();
   }, { name: 'report-snapshot', scheduled: true });
 
-  // ── Job 3: Delete report data older than 3 months — daily at midnight ──────
-  // Belt-and-suspenders alongside the MongoDB TTL index
+  // ── Job 3: Delete history older than DATA_RETENTION_DAYS — daily at midnight ─
+  // Belt-and-suspenders alongside the MongoDB TTL indexes (see config/retention)
   cron.schedule('0 0 * * *', async () => {
     try {
-      logger.info('Running 3-month report data cleanup...');
-      const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 3);
+      logger.info(`Running ${getRetentionDays()}-day history cleanup...`);
+      const { results } = await purgeExpiredData();
 
-      const result = await ReportData.deleteMany({ createdAt: { $lt: cutoff } });
-
-      if (result.deletedCount > 0) {
-        logger.info(`Cleanup: deleted ${result.deletedCount} old report record(s)`);
+      for (const [collection, deleted] of Object.entries(results)) {
+        if (deleted > 0) logger.info(`Cleanup: deleted ${deleted} old ${collection} record(s)`);
       }
     } catch (error) {
-      logger.error('Report cleanup job error:', error);
+      logger.error('History cleanup job error:', error);
     }
   }, { name: 'report-cleanup', scheduled: true });
 

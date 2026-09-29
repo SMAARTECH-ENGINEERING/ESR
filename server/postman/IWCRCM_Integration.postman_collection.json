@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "ESR — IWCRCM Integration",
+    "description": "IWCRCM (Industrial Water Consumption and Revenue Monitoring) requests.\n\nFolder 1 calls the IWCRCM provider directly (per the official PDF). Folder 2 calls this ESR server's admin endpoints.\n\nNO real secrets are stored here. Fill the collection variables locally and never commit them.\n\nNote: the Iot_Key (response code) needs the scramble algorithm, and the /main body must be RSA-encrypted with node-rsa. Neither can be produced inside Postman — the ESR server does both. Use folder 2 → 'Run IWCRCM tick now' for real end-to-end tests. See IWCRCM_INTEGRATION.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "iwcrcmBaseUrl", "value": "https://api.industrialwaterod.nic.in" },
+    { "key": "iwcrcmDeviceId", "value": "TNXWFM003" },
+    { "key": "iwcrcmChallengeKey", "value": "" },
+    { "key": "iwcrcmChallengeExpire", "value": "" },
+    { "key": "iwcrcmResponseCode", "value": "<REQUIRED: output of provider scramble algorithm>" },
+    { "key": "iwcrcmEncryptedPayload", "value": "<base64 ciphertext produced by ESR server>" }
+  ],
+  "item": [
+    {
+      "name": "1 — IWCRCM Provider API",
+      "item": [
+        {
+          "name": "Auth step 1 — request challenge code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const k = body.newkey || body;",
+                  "pm.test('has key + expire', () => { pm.expect(k.key).to.exist; pm.expect(k.expire).to.exist; });",
+                  "pm.collectionVariables.set('iwcrcmChallengeKey', k.key);",
+                  "pm.collectionVariables.set('iwcrcmChallengeExpire', k.expire);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{iwcrcmDeviceId}}\",\n  \"new\": true\n}"
+            },
+            "url": { "raw": "{{iwcrcmBaseUrl}}/auth", "host": ["{{iwcrcmBaseUrl}}"], "path": ["auth"] },
+            "description": "PDF step 1–2. `new` may be any value per the PDF (table: Boolean, max length 4).\n\nExpected 200:\n```json\n{ \"id\": \"TNXWFM003\", \"key\": \"<challenge code>\", \"expire\": \"<date/time, ~2 minutes>\" }\n```\n(The PDF shows this object as `newkey { ... }`; the ESR client accepts either form.)\n\nErrors: HTTP status codes are not documented in the PDF."
+          }
+        },
+        {
+          "name": "Auth step 2 — submit response code, receive 24h auth key",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{iwcrcmDeviceId}}\",\n  \"Key_Type\": \"Auth\",\n  \"Iot_Key\": \"{{iwcrcmResponseCode}}\",\n  \"Dt_Expire\": \"{{iwcrcmChallengeExpire}}\",\n  \"auth\": true\n}"
+            },
+            "url": { "raw": "{{iwcrcmBaseUrl}}/auth", "host": ["{{iwcrcmBaseUrl}}"], "path": ["auth"] },
+            "description": "PDF step 3–5. Must be sent within ~2 minutes of step 1.\n\n`Iot_Key` = response code derived from the challenge with the provider's scramble algorithm (NOT in the PDF — REQUIRED FROM IWCRCM API PROVIDER).\n\nExpected 200:\n```json\n{ \"id\": \"TNXWFM003\", \"key\": \"<auth key>\", \"expire\": \"<date/time, 24 hours>\" }\n```\nErrors: wrong response code or expired challenge → rejected (status code not documented)."
+          }
+        },
+        {
+          "name": "Data — send encrypted reading to /main",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "text/plain" }],
+            "body": { "mode": "raw", "raw": "{{iwcrcmEncryptedPayload}}" },
+            "url": { "raw": "{{iwcrcmBaseUrl}}/main", "host": ["{{iwcrcmBaseUrl}}"], "path": ["main"] },
+            "description": "PDF step 7–10. Body = base64 node-rsa encryption (IWCRCM public key) of:\n```json\n{\n  \"payload\": { \"id\": \"TNXWFM003\", \"loc\": \"85.8245,20.2961\", \"ts\": 1790666400000, \"flow\": 120.5, \"qty\": 4500.25, \"roll\": 0, \"key\": \"<auth key>\" },\n  \"hash\": \"<sha256 hex of JSON.stringify(payload)>\"\n}\n```\nExpected 200: `{ \"Action\": \"OK\" }`\n\nErrors: 403 when decryption, hash, or key validation fails (per PDF)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 — ESR Server (admin)",
+      "item": [
+        {
+          "name": "Map a tank to an IWCRCM device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"iwcrcm\": {\n    \"enabled\": true,\n    \"deviceId\": \"{{iwcrcmDeviceId}}\",\n    \"longitude\": 85.8245,\n    \"latitude\": 20.2961\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/tanks/{{tankId}}", "host": ["{{baseUrl}}"], "path": ["api", "tanks", "{{tankId}}"] },
+            "description": "Admin only. `deviceId` = department-issued IWCRCM id (1–11 chars A-Z0-9), unique per tank.\n\n200 → updated tank. 400 → validation (id/coordinates required when enabled). 409 → IWCRCM id already used by another tank."
+          }
+        },
+        {
+          "name": "IWCRCM status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('never exposes auth keys', () => pm.expect(pm.response.text()).to.not.match(/authKeyEncrypted/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/iwcrcm/status", "host": ["{{baseUrl}}"], "path": ["api", "iwcrcm", "status"] },
+            "description": "Admin only (control_room → 403).\n\n200:\n```json\n{ \"data\": { \"enabled\": true, \"configReady\": false, \"configIssues\": [\"...\"], \"sendIntervalMinutes\": 60, \"nextScheduledAt\": \"...\",\n  \"devices\": [{ \"tankName\": \"...\", \"iwcrcmDeviceId\": \"TNXWFM003\", \"lastStatus\": \"PENDING\", \"lastSuccessAt\": null, \"lastAttemptAt\": null, \"authExpiresAt\": null, \"pending\": 1, \"failed\": 0, \"nextScheduledAt\": \"...\" }] } }\n```"
+          }
+        },
+        {
+          "name": "Run IWCRCM tick now",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/iwcrcm/run", "host": ["{{baseUrl}}"], "path": ["api", "iwcrcm", "run"] },
+            "description": "Admin only. Queues the last completed slot (if not already queued) and sends due records.\n\n200 → `{ enqueued: {queued, skippedNoData, invalid} | null, processed: {processed, success, retrying, failed} | null }` (`processed` is null while config is incomplete).\n409 → IWCRCM_ENABLED=false."
+          }
+        },
+        {
+          "name": "Retry failed transmissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tankId\": \"{{tankId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/iwcrcm/retry-failed", "host": ["{{baseUrl}}"], "path": ["api", "iwcrcm", "retry-failed"] },
+            "description": "Admin only. Moves FAILED records back to PENDING (attempts reset). Omit `tankId` to re-queue all. 400 → invalid tankId."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,7 @@ const tankRoutes      = require('./modules/tanks/tank.route');
 const dashboardRoutes = require('./modules/dashboard/dashboard.route');
 const reportRoutes    = require('./modules/reports/report.route');
 const iotRoutes       = require('./modules/iot/iot.route');
+const iwcrcmRoutes    = require('./modules/iwcrcm/iwcrcm.route');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/tanks',     tankRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports',   reportRoutes);
 app.use('/api/iot',       iotRoutes);
+app.use('/api/iwcrcm',    iwcrcmRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

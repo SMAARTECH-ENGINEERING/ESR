@@ -1,6 +1,25 @@
 const Tank = require('./tank.model');
 const { AppError } = require('../../middleware/error.middleware');
 
+// Drop empty IWCRCM fields so the partial unique index ignores them
+const normalizeIwcrcm = (iwcrcm) => {
+  if (!iwcrcm) return iwcrcm;
+  const out = { enabled: !!iwcrcm.enabled };
+  if (iwcrcm.deviceId) out.deviceId = iwcrcm.deviceId.toUpperCase();
+  if (iwcrcm.longitude !== null && iwcrcm.longitude !== undefined) out.longitude = iwcrcm.longitude;
+  if (iwcrcm.latitude  !== null && iwcrcm.latitude  !== undefined) out.latitude  = iwcrcm.latitude;
+  return out;
+};
+
+const assertIwcrcmIdFree = async (iwcrcm, excludeId) => {
+  if (!iwcrcm || !iwcrcm.deviceId) return;
+  const query = { 'iwcrcm.deviceId': iwcrcm.deviceId };
+  if (excludeId) query._id = { $ne: excludeId };
+  if (await Tank.exists(query)) {
+    throw new AppError('IWCRCM device ID is already assigned to another tank', 409);
+  }
+};
+
 const getAllTanks = async ({ page = 1, limit = 10, status } = {}) => {
   const query = {};
   if (status) query.status = status;
@@ -51,7 +70,14 @@ const createTank = async (data) => {
     throw new AppError('Device ID is already assigned to another tank', 409);
   }
 
-  return Tank.create({ ...data, deviceId: data.deviceId.toUpperCase() });
+  const iwcrcm = normalizeIwcrcm(data.iwcrcm);
+  await assertIwcrcmIdFree(iwcrcm);
+
+  return Tank.create({
+    ...data,
+    deviceId: data.deviceId.toUpperCase(),
+    ...(iwcrcm && { iwcrcm }),
+  });
 };
 
 const updateTank = async (id, data) => {
@@ -70,6 +96,11 @@ const updateTank = async (id, data) => {
       }
       throw new AppError('Device ID is already assigned to another tank', 409);
     }
+  }
+
+  if (data.iwcrcm) {
+    data.iwcrcm = normalizeIwcrcm(data.iwcrcm);
+    await assertIwcrcmIdFree(data.iwcrcm, id);
   }
 
   const tank = await Tank.findByIdAndUpdate(id, data, {

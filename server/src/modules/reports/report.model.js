@@ -39,11 +39,8 @@ const reportDataSchema = new mongoose.Schema(
 reportDataSchema.index({ tankId: 1, createdAt: -1 });
 reportDataSchema.index({ tankId: 1, intervalTime: -1 });
 
-// TTL safety net: MongoDB auto-deletes records older than 3 months (90 days)
-// The cleanup cron job also handles this for predictable timing
-reportDataSchema.index(
-  { createdAt: 1 },
-  { expireAfterSeconds: 7776000, name: 'ttl_report_data_3months' }
-);
+// Retention TTL index on `createdAt` (DATA_RETENTION_DAYS, default 120) is
+// managed in src/config/retention.js — not declared here, because Mongoose
+// autoIndex cannot change expireAfterSeconds on an existing index.
 
 module.exports = mongoose.model('ReportData', reportDataSchema, 'report_data');

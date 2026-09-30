@@ -31,6 +31,13 @@ const getRetentionCutoff = (now = new Date(), env = process.env) =>
 // circular imports (models → config → models).
 const getRetentionTargets = () => [
   {
+    label:       'live_data',
+    model:       require('../modules/iot/iot.model'),
+    field:       'timestamp',
+    indexName:   'ttl_live_data_retention',
+    legacyNames: ['ttl_live_data_24h'],
+  },
+  {
     label:       'report_data',
     model:       require('../modules/reports/report.model'),
     field:       'createdAt',

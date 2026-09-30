@@ -1,5 +1,5 @@
 const iotService = require('./iot.service');
-const { sendSuccess } = require('../../utils/apiResponse.util');
+const { sendSuccess, sendPaginated } = require('../../utils/apiResponse.util');
 
 const receiveData = async (req, res, next) => {
   try {
@@ -34,4 +34,22 @@ const getLiveHistory = async (req, res, next) => {
   }
 };
 
-module.exports = { receiveData, getLatestReading, getLiveHistory };
+const getReadings = async (req, res, next) => {
+  try {
+    const { readings, pagination } = await iotService.getReadings(req.query);
+    return sendPaginated(res, readings, pagination, 'Readings retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getChartData = async (req, res, next) => {
+  try {
+    const data = await iotService.getChartData(req.params.tankId, req.query);
+    return sendSuccess(res, data, 'Chart data retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { receiveData, getLatestReading, getLiveHistory, getReadings, getChartData };

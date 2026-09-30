@@ -30,9 +30,9 @@ test('cutoff is exactly N days before now', () => {
 
 test('retention only targets high-volume history — never master/config data', () => {
   const labels = getRetentionTargets().map((t) => t.label).sort();
-  assert.deepEqual(labels, ['iwcrcm_transmissions', 'report_data']);
+  assert.deepEqual(labels, ['iwcrcm_transmissions', 'live_data', 'report_data']);
   const collections = getRetentionTargets().map((t) => t.model.collection.collectionName);
-  for (const protectedName of ['users', 'tanks', 'iwcrcm_credentials', 'live_data']) {
+  for (const protectedName of ['users', 'tanks', 'iwcrcm_credentials']) {
     assert.ok(!collections.includes(protectedName), `${protectedName} must not be purged`);
   }
 });
@@ -84,11 +84,18 @@ test('MongoDB: 120-day retention end-to-end', async (t) => {
     const Transmission = require('../src/integrations/iwcrcm/iwcrcm.transmission.model');
     const Credential = require('../src/integrations/iwcrcm/iwcrcm.credential.model');
 
-    // Simulate the pre-existing production state: 90-day TTL index
+    const LiveData = require('../src/modules/iot/iot.model');
+
+    // Simulate the pre-existing production state: 90-day / 24h TTL indexes
     await ReportData.createCollection();
     await ReportData.collection.createIndex({ createdAt: 1 }, { name: 'ttl_report_data_3months', expireAfterSeconds: 7776000 });
+    await LiveData.createCollection();
+    await LiveData.collection.createIndex({ timestamp: 1 }, { name: 'ttl_live_data_24h', expireAfterSeconds: 86400 });
 
     await ensureRetentionIndexes();
+
+    const liveTtl = (await LiveData.collection.indexes()).filter((i) => i.expireAfterSeconds !== undefined);
+    assert.deepEqual(liveTtl.map((i) => [i.name, i.expireAfterSeconds]), [['ttl_live_data_retention', 10368000]]);
 
     const rdIdx = await ReportData.collection.indexes();
     const ttl = rdIdx.filter((i) => i.expireAfterSeconds !== undefined);
@@ -121,9 +128,12 @@ test('MongoDB: 120-day retention end-to-end', async (t) => {
       snapshot: { id: 'OLD1', loc: '1,1', ts: 1, flow: 1, qty: 1, roll: 0 }, createdAt,
     });
     await Transmission.collection.insertMany([tx(old, 0), tx(recent, 1)]);
+    const live = (timestamp) => ({ tankId, deviceId: 'OLD1', flowRate: 1, totalizer: 1, timestamp });
+    await LiveData.collection.insertMany([live(old), live(recent), live(now)]);
 
     const { results } = await purgeExpiredData(undefined, now);
-    assert.deepEqual(results, { report_data: 1, iwcrcm_transmissions: 1 });
+    assert.deepEqual(results, { live_data: 1, report_data: 1, iwcrcm_transmissions: 1 });
+    assert.equal(await LiveData.countDocuments(), 2, 'readings newer than 120 days remain');
 
     assert.equal(await ReportData.countDocuments(), 2, 'data newer than 120 days remains');
     assert.equal(await ReportData.countDocuments({ createdAt: { $lt: getRetentionCutoff(now) } }), 0);

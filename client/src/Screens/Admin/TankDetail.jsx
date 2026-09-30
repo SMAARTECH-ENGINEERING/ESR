@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -7,7 +7,37 @@ import {
 } from 'recharts';
 import { Wifi, WifiOff, MapPin, Cpu, ArrowLeft, RefreshCw, Droplets, Activity, Gauge } from 'lucide-react';
 import io from 'socket.io-client';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import api from '../../utils/api';
+import ReadingsTable from '../../Components/Admin/ReadingsTable';
+
+const RANGES = [
+  { key: 'day',     label: '1 Day' },
+  { key: 'week',    label: '1 Week' },
+  { key: 'month',   label: '1 Month' },
+  { key: '4months', label: '4 Months' },
+  { key: 'custom',  label: 'Custom' },
+];
+
+const RANGE_TITLE = {
+  day: 'Last 24 hours', week: 'Last 7 days', month: 'Last 30 days', '4months': 'Last 4 months',
+};
+
+const todayInput = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// Axis label detail depends on bucket size
+const formatBucket = (t, bucketMinutes) => {
+  const d = new Date(t);
+  if (bucketMinutes <= 5) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (bucketMinutes <= 30) return d.toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  if (bucketMinutes <= 120) return d.toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit' });
+  return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
+};
 
 const STATUS_BG = {
   online: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -42,16 +72,17 @@ function MetricCard({ label, value, unit, sub, icon, gradient, index }) {
   );
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3 text-xs">
-      <p className="text-slate-500 font-semibold mb-2">{label}</p>
-      {payload.map((p) => (
-        <p key={p.dataKey} style={{ color: p.color }} className="font-bold">
-          {p.name}: {p.value} {p.name === 'Flow Rate' ? 'L/min' : 'L'}
-        </p>
-      ))}
+    <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3 text-xs space-y-0.5">
+      <p className="text-slate-500 font-semibold mb-1.5">{new Date(p.t).toLocaleString()}</p>
+      <p className="font-bold text-[#2E3A8C]">Avg Flow: {p.flowAvg ?? '—'} L/min</p>
+      <p className="text-slate-500">Max Flow: {p.flowMax ?? '—'} L/min</p>
+      <p className="font-bold text-emerald-600">Totalizer: {p.totalizer?.toLocaleString() ?? '—'} L</p>
+      {p.level != null && <p className="text-amber-600">Water Level: {p.level}%</p>}
+      <p className="text-slate-400">{p.count} reading{p.count === 1 ? '' : 's'}</p>
     </div>
   );
 };
@@ -62,38 +93,29 @@ export default function TankDetail() {
 
   const [tank, setTank] = useState(null);
   const [latestData, setLatestData] = useState(null);
-  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [liveConnected, setLiveConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const formatHistory = (records) =>
-    (records || [])
-      .map((r) => ({
-        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        flowRate: Number((r.flowRate || 0).toFixed(2)),
-        totalizer: r.totalizer || 0,
-        waterLevelPercent: r.waterLevelPercent ?? null,
-        timestamp: new Date(r.timestamp).getTime(),
-      }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+  // Chart range
+  const [range, setRange] = useState('day');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState(todayInput());
+  const [appliedCustom, setAppliedCustom] = useState(null);
+  const [chart, setChart] = useState({ points: [], bucketMinutes: 5 });
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState(null);
+  const lastChartFetch = useRef(0);
 
   const fetchDetail = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // Fetch tank info + 24h history in parallel
-      const [dashRes, histRes] = await Promise.all([
-        api.get(`/dashboard/${id}`),
-        api.get(`/iot/history/${id}`, { params: { hours: 24, limit: 288 } }),
-      ]);
-
+      const dashRes = await api.get(`/dashboard/${id}`);
       const { tank: t, latestData: ld } = dashRes.data.data;
       setTank(t);
       setLatestData(ld);
-      setHistory(formatHistory(histRes.data.data || []));
       setLastUpdated(new Date());
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load tank data.');
@@ -103,6 +125,49 @@ export default function TankDetail() {
   }, [id]);
 
   useEffect(() => { fetchDetail(); }, [fetchDetail]);
+
+  const fetchChart = useCallback(async ({ silent = false } = {}) => {
+    if (range === 'custom' && !appliedCustom) return;
+    try {
+      if (!silent) setChartLoading(true);
+      setChartError(null);
+      const params = range === 'custom'
+        ? {
+          from: new Date(`${appliedCustom.from}T00:00:00`).toISOString(),
+          to: new Date(`${appliedCustom.to}T23:59:59.999`).toISOString(),
+        }
+        : { range };
+      params.tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await api.get(`/iot/chart/${id}`, { params });
+      const { points, bucketMinutes } = res.data.data;
+      setChart({
+        bucketMinutes,
+        points: points.map((p) => ({ ...p, label: formatBucket(p.t, bucketMinutes) })),
+      });
+      lastChartFetch.current = Date.now();
+    } catch (err) {
+      setChartError(err?.response?.data?.errors?.join(', ') || err?.response?.data?.message || 'Failed to load chart.');
+    } finally {
+      if (!silent) setChartLoading(false);
+    }
+  }, [id, range, appliedCustom]);
+
+  useEffect(() => { fetchChart(); }, [fetchChart]);
+
+  // Keep the live chart fresh without reloading on every single reading
+  const fetchChartRef = useRef(fetchChart);
+  fetchChartRef.current = fetchChart;
+  const rangeRef = useRef(range);
+  rangeRef.current = range;
+
+  const applyCustomRange = () => {
+    if (!customFrom || !customTo) return setChartError('Select both From and To dates.');
+    if (customFrom > customTo) return setChartError('"From" date must be before "To" date.');
+    const days = (new Date(customTo) - new Date(customFrom)) / 86400000 + 1;
+    if (days > 120) return setChartError('Custom range can be at most 120 days.');
+    setAppliedCustom({ from: customFrom, to: customTo });
+    return undefined;
+  };
 
   // Socket.IO — real-time updates
   useEffect(() => {
@@ -124,18 +189,10 @@ export default function TankDetail() {
         timestamp: data.timestamp,
       });
       setLastUpdated(new Date());
-      setHistory((prev) => {
-        const point = {
-          time: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          flowRate: Number((data.flowRate || 0).toFixed(2)),
-          totalizer: data.totalizer || 0,
-          waterLevelPercent: data.waterLevelPercent ?? null,
-          timestamp: new Date(data.timestamp).getTime(),
-        };
-        const updated = [...prev, point];
-        // keep last 24h worth of data (max 288 points)
-        return updated.length > 288 ? updated.slice(-288) : updated;
-      });
+      // 1-day view: refresh the chart at most once a minute
+      if (rangeRef.current === 'day' && Date.now() - lastChartFetch.current > 60000) {
+        fetchChartRef.current({ silent: true });
+      }
       setTank((prev) => prev ? { ...prev, status: data.status, lastSeen: data.lastSeen } : prev);
     });
 
@@ -181,6 +238,7 @@ export default function TankDetail() {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] p-6">
+      <ToastContainer position="top-right" autoClose={3000} />
       <div className="mx-auto w-full">
 
         {/* Header */}
@@ -216,7 +274,7 @@ export default function TankDetail() {
             </span>
 
             <button
-              onClick={fetchDetail}
+              onClick={() => { fetchDetail(); fetchChart(); }}
               className="flex items-center gap-1.5 border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 rounded-lg hover:border-[#2E3A8C] hover:text-[#2E3A8C] transition"
             >
               <RefreshCw size={13} /> Refresh
@@ -255,20 +313,67 @@ export default function TankDetail() {
           />
         </div>
 
-        {/* Combined 24h Chart */}
+        {/* Flow / Totalizer chart with selectable range */}
         <div className="mt-8 border border-slate-200 bg-white p-6 shadow-[0_4px_20px_rgba(15,23,42,0.05)]">
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex flex-col xl:flex-row xl:items-start justify-between gap-4">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900">Today's Overview</h3>
-              <p className="text-sm text-slate-500 mt-1">Flow Rate (L/min) & Totalizer (L) — last 24 hours</p>
+              <h3 className="text-xl font-semibold text-slate-900">Flow & Totalizer</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                {range === 'custom'
+                  ? (appliedCustom ? `${new Date(appliedCustom.from).toLocaleDateString()} – ${new Date(appliedCustom.to).toLocaleDateString()}` : 'Pick a date range')
+                  : RANGE_TITLE[range]}
+                {' · '}
+                {chart.bucketMinutes < 60 ? `${chart.bucketMinutes}-minute` : `${chart.bucketMinutes / 60}-hour`} averages
+              </p>
             </div>
-            <span className="text-xs text-slate-400">{history.length} readings</span>
+
+            <div className="flex flex-col items-start xl:items-end gap-2">
+              <div className="inline-flex flex-wrap rounded-lg border border-slate-300 overflow-hidden">
+                {RANGES.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => { setChartError(null); setRange(r.key); }}
+                    className={`px-4 py-1.5 text-sm font-semibold transition border-r border-slate-300 last:border-r-0 ${
+                      range === r.key ? 'bg-[#2E3A8C] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              {range === 'custom' && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-0.5">From</label>
+                    <input type="date" value={customFrom} max={customTo || todayInput()} onChange={(e) => setCustomFrom(e.target.value)}
+                      className="text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#2E3A8C]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-0.5">To</label>
+                    <input type="date" value={customTo} min={customFrom} max={todayInput()} onChange={(e) => setCustomTo(e.target.value)}
+                      className="text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#2E3A8C]" />
+                  </div>
+                  <button type="button" onClick={applyCustomRange}
+                    className="bg-[#2E3A8C] text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-[#4F68A4] transition">
+                    Apply
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {history.length > 0 ? (
+          {chartError && <p className="mb-3 text-sm text-red-500">{chartError}</p>}
+
+          {chartLoading ? (
+            <div className="h-80 flex items-center justify-center text-slate-400 border border-slate-100 bg-[#f8fbff] rounded">
+              <RefreshCw size={22} className="animate-spin" />
+            </div>
+          ) : chart.points.length > 0 ? (
             <div className="h-80 rounded border border-slate-100 bg-[#f8fbff] p-4">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={history}>
+                <ComposedChart data={chart.points}>
                   <defs>
                     <linearGradient id="flowAreaGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2E3A8C" stopOpacity={0.25} />
@@ -277,11 +382,12 @@ export default function TankDetail() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis
-                    dataKey="time"
+                    dataKey="label"
                     tick={{ fill: '#64748b', fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
                     interval="preserveStartEnd"
+                    minTickGap={24}
                   />
                   <YAxis
                     yAxisId="left"
@@ -306,8 +412,8 @@ export default function TankDetail() {
                   <Area
                     yAxisId="left"
                     type="monotone"
-                    dataKey="flowRate"
-                    name="Flow Rate"
+                    dataKey="flowAvg"
+                    name="Flow Rate (avg)"
                     stroke="#2E3A8C"
                     strokeWidth={2.5}
                     fill="url(#flowAreaGrad)"
@@ -330,41 +436,16 @@ export default function TankDetail() {
           ) : (
             <div className="h-80 flex flex-col items-center justify-center text-slate-400 border border-slate-100 bg-[#f8fbff] rounded">
               <Activity size={32} className="mb-3 opacity-30" />
-              <p className="text-sm">No data recorded in the last 24 hours</p>
-              <p className="text-xs mt-1">Data appears here once the IoT device sends readings</p>
+              <p className="text-sm">No readings in this period</p>
+              <p className="text-xs mt-1">Try a longer range, or check that the device is sending data</p>
             </div>
           )}
         </div>
 
-        {/* Recent readings table */}
-        {history.length > 0 && (
-          <div className="mt-6 border border-slate-200 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.05)]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="text-base font-semibold text-slate-900">Recent Readings</h3>
-              <span className="text-xs text-slate-400">Showing last 20 of {history.length}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="px-6 py-3 text-left font-semibold text-slate-600">Time</th>
-                    <th className="px-6 py-3 text-right font-semibold text-slate-600">Flow Rate (L/min)</th>
-                    <th className="px-6 py-3 text-right font-semibold text-slate-600">Totalizer (L)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...history].reverse().slice(0, 20).map((r, i) => (
-                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition">
-                      <td className="px-6 py-2.5 text-slate-600">{r.time}</td>
-                      <td className="px-6 py-2.5 text-right font-semibold text-[#2E3A8C]">{r.flowRate}</td>
-                      <td className="px-6 py-2.5 text-right font-semibold text-emerald-600">{r.totalizer?.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* All readings for this tank — paginated, date filter, export */}
+        <div className="mt-6">
+          <ReadingsTable tankId={id} title={`${tank.tankName} — Readings`} />
+        </div>
 
       </div>
     </div>

@@ -352,83 +352,104 @@ function TankList() {
 
       {/* Add / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center ">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">
-                {editingTank ? 'Edit Tank' : 'Add New Tank'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {editingTank ? 'Edit Tank' : 'Add New Tank'}
+                </h2>
+                <p className="text-xs text-slate-500">Fields marked <span className="text-red-500">*</span> are required</p>
+              </div>
+              <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-              {[
-                { label: 'Tank Name', name: 'tankName', placeholder: 'e.g. ESR Tank A1' },
-                { label: 'Device ID', name: 'deviceId', placeholder: 'e.g. DEV001' },
-                { label: 'Location', name: 'location', placeholder: 'e.g. Bhubaneswar North' },
-              ].map(({ label, name, placeholder }) => (
-                <div key={name}>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-                  <input
-                    type="text"
-                    value={form[name]}
-                    onChange={(e) => setForm((p) => ({ ...p, [name]: e.target.value }))}
-                    placeholder={placeholder}
-                    className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E3A8C] transition ${formErrors[name] ? 'border-red-400' : 'border-slate-300'}`}
-                  />
-                  {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
-                </div>
-              ))}
+            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+              {/* Tank details — two fields per row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { label: 'Tank Name', name: 'tankName', placeholder: 'e.g. ESR Tank A1' },
+                  { label: 'Device ID', name: 'deviceId', placeholder: 'e.g. DEV001' },
+                  { label: 'Location', name: 'location', placeholder: 'e.g. Bhubaneswar North' },
+                ].map(({ label, name, placeholder }) => (
+                  <div key={name}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      {label} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form[name]}
+                      onChange={(e) => setForm((p) => ({ ...p, [name]: e.target.value }))}
+                      placeholder={placeholder}
+                      className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E3A8C] transition ${formErrors[name] ? 'border-red-400' : 'border-slate-300'}`}
+                    />
+                    {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
+                  </div>
+                ))}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E3A8C]"
-                >
-                  <option value="inactive">Inactive</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2E3A8C]"
+                  >
+                    <option value="inactive">Inactive</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
               </div>
 
               {/* IWCRCM government reporting (optional) */}
-              <div className="border border-slate-200 rounded-lg p-3 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <div className={`border rounded-xl p-4 space-y-4 transition ${form.iwcrcm.enabled ? 'border-[#2E3A8C]/40 bg-blue-50/40' : 'border-slate-200'}`}>
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.iwcrcm.enabled}
                     onChange={(e) => setForm((p) => ({ ...p, iwcrcm: { ...p.iwcrcm, enabled: e.target.checked } }))}
-                    className="h-4 w-4 accent-[#2E3A8C]"
+                    className="mt-0.5 h-4 w-4 accent-[#2E3A8C]"
                   />
-                  Send data to IWCRCM
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-800">Send data to IWCRCM</span>
+                    <span className="block text-xs text-slate-500">Hourly reporting to the government portal (optional)</span>
+                  </span>
                 </label>
-                {[
-                  { label: 'IWCRCM Device ID', name: 'deviceId', err: 'iwcrcmDeviceId', placeholder: 'e.g. TNXWFM003 (issued by department)' },
-                  { label: 'Longitude', name: 'longitude', err: 'iwcrcmLongitude', placeholder: 'e.g. 85.8245', type: 'number' },
-                  { label: 'Latitude', name: 'latitude', err: 'iwcrcmLatitude', placeholder: 'e.g. 20.2961', type: 'number' },
-                ].map(({ label, name, err, placeholder, type }) => (
-                  <div key={name}>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-                    <input
-                      type={type || 'text'}
-                      step="any"
-                      value={form.iwcrcm[name]}
-                      onChange={(e) => setForm((p) => ({ ...p, iwcrcm: { ...p.iwcrcm, [name]: e.target.value } }))}
-                      placeholder={placeholder}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E3A8C] transition ${formErrors[err] ? 'border-red-400' : 'border-slate-300'}`}
-                    />
-                    {formErrors[err] && <p className="text-xs text-red-500 mt-1">{formErrors[err]}</p>}
-                  </div>
-                ))}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { label: 'IWCRCM Device ID', name: 'deviceId', err: 'iwcrcmDeviceId', placeholder: 'e.g. TNXWFM003', hint: 'Issued by the department', span: 'sm:col-span-2' },
+                    { label: 'Longitude', name: 'longitude', err: 'iwcrcmLongitude', placeholder: 'e.g. 85.8245', type: 'number' },
+                    { label: 'Latitude', name: 'latitude', err: 'iwcrcmLatitude', placeholder: 'e.g. 20.2961', type: 'number' },
+                  ].map(({ label, name, err, placeholder, type, hint, span }) => (
+                    <div key={name} className={span || ''}>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {label} {form.iwcrcm.enabled && <span className="text-red-500">*</span>}
+                      </label>
+                      <input
+                        type={type || 'text'}
+                        step="any"
+                        value={form.iwcrcm[name]}
+                        onChange={(e) => setForm((p) => ({ ...p, iwcrcm: { ...p.iwcrcm, [name]: e.target.value } }))}
+                        placeholder={placeholder}
+                        className={`w-full px-4 py-2.5 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2E3A8C] transition ${formErrors[err] ? 'border-red-400' : 'border-slate-300'}`}
+                      />
+                      {formErrors[err]
+                        ? <p className="text-xs text-red-500 mt-1">{formErrors[err]}</p>
+                        : hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

@@ -178,7 +178,7 @@ The PDF defines **no idempotency key**. Duplicates are avoided locally (one reco
 |---|---|
 | `report_data` (30-min history used by reports) | 120 days (was 90) |
 | `iwcrcm_transmissions` (IWCRCM queue) | 120 days |
-| `live_data` | unchanged, 24 h live buffer |
+| `live_data` (every raw device reading) | 120 days (was 24 h) |
 | `users`, `tanks`, `iwcrcm_credentials` | never auto-deleted |
 
 - **TTL index:** `expireAfterSeconds = 120 × 24 × 60 × 60 = 10,368,000`, on `createdAt`. At startup the old 90-day index `ttl_report_data_3months` (7,776,000 s) is dropped and `ttl_report_data_retention` is created. Mongoose can't change an existing TTL value by itself, so the schema no longer declares it.

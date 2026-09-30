@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { objectIdSchema } = require('../../validations/common.validation');
 
 const validate = (schema) => (req, res, next) => {
   const { error, value } = schema.validate(req.body, {
@@ -41,4 +42,22 @@ const iotDataSchema = Joi.object({
   timestamp: Joi.date().iso().default(() => new Date()),
 });
 
-module.exports = { iotDataSchema, validate };
+// GET /api/iot/readings
+const readingsQuerySchema = Joi.object({
+  tankId: objectIdSchema,
+  from:   Joi.date().iso(),
+  to:     Joi.date().iso().when('from', { is: Joi.exist(), then: Joi.date().min(Joi.ref('from')) }),
+  page:   Joi.number().integer().min(1).default(1),
+  // Up to 5000 so the UI can export a whole filtered range
+  limit:  Joi.number().integer().min(1).max(5000).default(50),
+}).messages({ 'date.min': '"to" must be after "from"' });
+
+// GET /api/iot/chart/:tankId
+const chartQuerySchema = Joi.object({
+  range: Joi.string().valid('day', 'week', 'month', '4months').default('day'),
+  from:  Joi.date().iso(),
+  to:    Joi.date().iso(),
+  tz:    Joi.string().max(64),
+});
+
+module.exports = { iotDataSchema, readingsQuerySchema, chartQuerySchema, validate };

@@ -4,7 +4,7 @@ import { BiSolidDashboard } from 'react-icons/bi';
 import { FaUsers, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { MdCardMembership } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User, Radio, Send } from 'lucide-react';
+import { Droplets, BarChart2, Calendar, CalendarDays, CalendarRange, User, Radio, Send, List } from 'lucide-react';
 import { decryptData } from '../localStorageUtils';
 
 const cls = {
@@ -94,6 +94,7 @@ const ALL_MENU_ITEMS = [
     children: [
       { label: 'All Tanks',    path: '/admin/tanks',  icon: <Droplets size={15} /> },
       { label: 'Live Monitor', path: '/admin/report', icon: <BarChart2 size={15} /> },
+      { label: 'All Readings', path: '/admin/data',   icon: <List size={15} /> },
     ],
   },
 

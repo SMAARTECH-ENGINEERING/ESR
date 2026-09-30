@@ -42,10 +42,7 @@ const liveDataSchema = new mongoose.Schema(
 liveDataSchema.index({ tankId: 1, timestamp: -1 });
 liveDataSchema.index({ deviceId: 1, timestamp: -1 });
 
-// TTL index — MongoDB auto-deletes documents after 24 hours
-liveDataSchema.index(
-  { timestamp: 1 },
-  { expireAfterSeconds: 86400, name: 'ttl_live_data_24h' }
-);
+// Retention TTL index on `timestamp` (DATA_RETENTION_DAYS, default 120) is
+// managed in src/config/retention.js — it also serves date-range queries.
 
 module.exports = mongoose.model('LiveData', liveDataSchema, 'live_data');

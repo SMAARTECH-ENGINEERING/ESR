@@ -149,7 +149,7 @@ ESR-NEW/
     │   │   └── tank.route.js        # GET/POST/PUT/DELETE /api/tanks
     │   │
     │   ├── iot/
-    │   │   ├── iot.model.js         # LiveData schema with TTL index (24h auto-delete)
+    │   │   ├── iot.model.js         # LiveData schema (TTL managed by config/retention.js)
     │   │   ├── iot.validation.js    # Joi schema for device payload
     │   │   ├── iot.service.js       # Data ingestion, Socket.IO emit, tank status update
     │   │   ├── iot.controller.js    # Request/response handlers
@@ -204,7 +204,7 @@ ESR-NEW/
 MongoDB Atlas
 ├── users          — system user accounts
 ├── tanks          — registered ESR tanks
-├── live_data      — 1-minute IoT readings (TTL: 24 hours)
+├── live_data      — 1-minute IoT readings (TTL: DATA_RETENTION_DAYS, default 120 days)
 ├── report_data    — 30-minute snapshots (TTL: DATA_RETENTION_DAYS, default 120 days)
 ├── iwcrcm_transmissions — IWCRCM outbox (TTL: DATA_RETENTION_DAYS)
 └── iwcrcm_credentials   — encrypted IWCRCM auth keys (no TTL)
@@ -276,7 +276,7 @@ Indexes:
 Indexes:
   { tankId: 1, timestamp: -1 }   — latest reading per tank (dashboard)
   { deviceId: 1, timestamp: -1 } — device-specific history
-  { timestamp: 1 }  TTL: 86400s  — MongoDB auto-deletes after 24h
+  { timestamp: 1 }  TTL: 10368000s — auto-deletes after 120 days (DATA_RETENTION_DAYS)
 ```
 
 > **Note:** No `createdAt`/`updatedAt` timestamps on live_data to minimize document size. The TTL index on `timestamp` handles automatic cleanup.
@@ -552,7 +552,7 @@ IoT Device
 [iot.service] processIoTData()
     │
     ├── 1. Tank.findOne({ deviceId })         → identify the tank
-    ├── 2. LiveData.create({ ... })           → store in live_data (TTL 24h)
+    ├── 2. LiveData.create({ ... })           → store in live_data (TTL 120 days)
     ├── 3. Tank.findByIdAndUpdate(status, lastSeen)
     ├── 4. emitTankUpdate(tankId, payload)    → Socket.IO broadcast
     └── 5. Return { tank }                   → 200 OK to device
@@ -668,7 +668,7 @@ Get all tanks where status = 'online'
 
 | Collection | Retention | Mechanism |
 |---|---|---|
-| `live_data` | **24 hours** | MongoDB TTL index on `timestamp` field (short live buffer) |
+| `live_data` | **120 days** (`DATA_RETENTION_DAYS`) | MongoDB TTL index on `timestamp` + daily cron job |
 | `report_data` | **120 days** (`DATA_RETENTION_DAYS`) | MongoDB TTL index on `createdAt` + daily cron job |
 | `iwcrcm_transmissions` | **120 days** (`DATA_RETENTION_DAYS`) | MongoDB TTL index on `createdAt` + daily cron job |
 | `users`, `tanks`, `iwcrcm_credentials` | Never auto-deleted | — |
@@ -750,7 +750,7 @@ tanks            { status: 1 }                  Filter online/offline tanks
 tanks            { lastSeen: -1 }               Offline detection query
 live_data        { tankId: 1, timestamp: -1 }   Latest reading per tank
 live_data        { deviceId: 1, timestamp: -1 } Device history
-live_data        { timestamp: 1 }  TTL          Auto-expiry (24h)
+live_data        { timestamp: 1 }  TTL          Auto-expiry (120 days) + date-range queries
 report_data      { tankId: 1, createdAt: -1 }   Report date range queries
 report_data      { tankId: 1, intervalTime: -1} Aggregation queries
 report_data      { createdAt: 1 }  TTL          Auto-expiry (DATA_RETENTION_DAYS, 120)

@@ -2,7 +2,6 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
-const { globalRateLimiter } = require('./middleware/rateLimiter.middleware');
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
 const logger = require('./config/logger');
 
@@ -34,9 +33,6 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(morgan('combined', {
   stream: { write: (msg) => logger.http(msg.trim()) },
 }));
-
-// Global rate limiter
-app.use(globalRateLimiter);
 
 // Health check
 app.get('/health', (req, res) => {

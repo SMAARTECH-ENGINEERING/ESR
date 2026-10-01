@@ -5,13 +5,12 @@ const { validate: validateRequest, objectIdSchema } = require('../../validations
 const Joi = require('joi');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { authorize } = require('../../middleware/role.middleware');
-const { iotRateLimiter } = require('../../middleware/rateLimiter.middleware');
 const { verifyDeviceSecret } = require('../../middleware/iot.middleware');
 
 const router = express.Router();
 
 // POST /api/iot/data — called by IoT devices (device-secret auth, no JWT)
-router.post('/data', iotRateLimiter, verifyDeviceSecret, validate(iotDataSchema), receiveData);
+router.post('/data', verifyDeviceSecret, validate(iotDataSchema), receiveData);
 
 // GET endpoints — Live Monitoring: accessible to both admin and control_room
 router.get('/latest/:tankId',  authenticate, authorize('admin', 'control_room'), getLatestReading);

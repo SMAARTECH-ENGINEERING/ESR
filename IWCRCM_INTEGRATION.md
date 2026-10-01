@@ -92,7 +92,7 @@ The challenge code from step ② is valid for about **2 minutes**. The server an
 | `loc` | `tank.iwcrcm.longitude`,`tank.iwcrcm.latitude` | `"longitude,latitude"` (PDF order). Meters have no GPS, so fixed per tank |
 | `ts` | reading `timestamp` | Epoch **milliseconds** |
 | `flow` | reading `flowRate` × `IWCRCM_FLOW_MULTIPLIER` | Local unit: **m³/h** (as sent by the device) |
-| `qty` | reading `totalizer` × `IWCRCM_QTY_MULTIPLIER` | Local unit: **litres, daily total, resets at midnight** |
+| `qty` | reading `totalizer` × `IWCRCM_QTY_MULTIPLIER` | Local unit: **m³ (as sent by the device), daily total, resets at midnight** |
 | `roll` | `IWCRCM_ROLL_VALUE` (default `0`) | PDF only gives example `0` |
 | `key` | current 24 h auth key | Added at send time; never stored in the queue |
 
@@ -240,7 +240,7 @@ These are genuinely missing from, or ambiguous in, the PDF:
 6. **Date/time format and timezone** of `expire` / `Dt_Expire` (ISO? IST? epoch?). The parameter table also describes `expire` as a device-provided value, which contradicts steps 2 and 5.
 7. **`/auth` response envelope**: `{ id, key, expire }` or `{ newkey: { ... } }`?
 8. **HTTP status codes and error bodies for `/auth`** (not documented).
-9. **Units of `flow`** (ESR meters report m³/h — is that what IWCRCM expects?) and **`qty`** (litres? m³?). Also, should `qty` be the cumulative meter reading, the daily total (what ESR meters report, which resets at midnight), or consumption during the hour?
+9. **Units of `flow`** (ESR meters report m³/h — is that what IWCRCM expects?) and **`qty`** (ESR meters report m³ — is that what IWCRCM expects?). Also, should `qty` be the cumulative meter reading, the daily total (what ESR meters report, which resets at midnight), or consumption during the hour?
 10. **Meaning of `roll`** (e.g. totalizer rollover count?). The PDF only gives example `0`, max length 1.
 11. **Device IDs**: department-issued IDs per meter, and confirmation that one server may authenticate on behalf of several meters.
 12. **Location source**: are fixed site coordinates acceptable in place of live GPS?

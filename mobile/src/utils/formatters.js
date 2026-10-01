@@ -8,8 +8,8 @@ export function formatNumber(value, fractionDigits = 1) {
   });
 }
 
-// Devices report (and the server stores) flow already in m³/h — shown as-is,
-// never converted. Totalizer is stored in litres and displayed in m³.
+// Devices report (and the server stores) flow in m³/h and totalizer in m³.
+// Both are shown as-is, never converted.
 export const FLOW_UNIT = 'm³/h';
 export const VOLUME_UNIT = 'm³';
 
@@ -19,18 +19,18 @@ export function toM3h(flow) {
   return Number(Number(flow).toFixed(2));
 }
 
-// litres → m³
-export function toM3(litres) {
-  if (litres === null || litres === undefined || Number.isNaN(Number(litres))) return null;
-  return Number((Number(litres) / 1000).toFixed(3));
+// Totalizer is already m³: no conversion, only rounded for display
+export function toM3(volume) {
+  if (volume === null || volume === undefined || Number.isNaN(Number(volume))) return null;
+  return Number(Number(volume).toFixed(3));
 }
 
 export function formatFlow(flow) {
   return formatNumber(toM3h(flow), 2);
 }
 
-export function formatVolume(litres) {
-  return formatNumber(toM3(litres), 3);
+export function formatVolume(volume) {
+  return formatNumber(toM3(volume), 3);
 }
 
 export function formatDateTime(value) {

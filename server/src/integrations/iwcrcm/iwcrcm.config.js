@@ -82,7 +82,7 @@ const loadConfig = (env = process.env) => {
     batchSize:              num(env.IWCRCM_BATCH_SIZE, 50),
 
     // Unit/meaning of flow, qty, roll are NOT defined in the PDF.
-    // Local units: flowRate = m³/h (as sent by the device), totalizer = litres (daily, resets at midnight).
+    // Local units: flowRate = m³/h (as sent by the device), totalizer = m³ (as sent by the device; daily, resets at midnight).
     // TODO / REQUIRED FROM IWCRCM API PROVIDER — adjust multipliers once known.
     flowMultiplier: num(env.IWCRCM_FLOW_MULTIPLIER, 1),
     qtyMultiplier:  num(env.IWCRCM_QTY_MULTIPLIER, 1),

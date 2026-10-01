@@ -10,6 +10,7 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3, fmtFlow, fmtVolume } from '../../utils/units';
 
 const StatBox = ({ label, value, unit, icon, color }) => (
   <div className={`border bg-white p-5 shadow-[0_4px_20px_rgba(15,23,42,0.06)] border-slate-200`}>
@@ -65,9 +66,9 @@ export default function DailyReport() {
 
   const chartData = report?.report
     ? [
-        { name: 'Avg Flow', value: Number((report.report.avgFlowRate || 0).toFixed(2)) },
-        { name: 'Max Flow', value: Number((report.report.maxFlowRate || 0).toFixed(2)) },
-        { name: 'Min Flow', value: Number((report.report.minFlowRate || 0).toFixed(2)) },
+        { name: 'Avg Flow', value: toM3h(report.report.avgFlowRate || 0) },
+        { name: 'Max Flow', value: toM3h(report.report.maxFlowRate || 0) },
+        { name: 'Min Flow', value: toM3h(report.report.minFlowRate || 0) },
       ]
     : [];
 
@@ -76,10 +77,10 @@ export default function DailyReport() {
     const ws = XLSX.utils.json_to_sheet([{
       'Tank ID': report.tankId,
       Date: report.date,
-      'Daily Total (L)': report.report?.dailyTotal,
-      'Avg Flow Rate': report.report?.avgFlowRate,
-      'Max Flow Rate': report.report?.maxFlowRate,
-      'Min Flow Rate': report.report?.minFlowRate,
+      'Daily Total (m3)': toM3(report.report?.dailyTotal),
+      'Avg Flow Rate (m3/h)': toM3h(report.report?.avgFlowRate),
+      'Max Flow Rate (m3/h)': toM3h(report.report?.maxFlowRate),
+      'Min Flow Rate (m3/h)': toM3h(report.report?.minFlowRate),
       'Total Readings': report.report?.totalReadings,
     }]);
     const wb = XLSX.utils.book_new();
@@ -96,10 +97,10 @@ export default function DailyReport() {
       startY: 25,
       head: [['Metric', 'Value']],
       body: [
-        ['Daily Total (L)', report.report?.dailyTotal?.toLocaleString()],
-        ['Avg Flow Rate (L/min)', report.report?.avgFlowRate?.toFixed(2)],
-        ['Max Flow Rate (L/min)', report.report?.maxFlowRate?.toFixed(2)],
-        ['Min Flow Rate (L/min)', report.report?.minFlowRate?.toFixed(2)],
+        ['Daily Total (m3)', fmtVolume(report.report?.dailyTotal)],
+        ['Avg Flow Rate (m3/h)', fmtFlow(report.report?.avgFlowRate)],
+        ['Max Flow Rate (m3/h)', fmtFlow(report.report?.maxFlowRate)],
+        ['Min Flow Rate (m3/h)', fmtFlow(report.report?.minFlowRate)],
         ['Total Readings', report.report?.totalReadings],
         ['First Reading At', report.report?.firstReadingAt ? new Date(report.report.firstReadingAt).toLocaleString() : 'N/A'],
         ['Last Reading At', report.report?.lastReadingAt ? new Date(report.report.lastReadingAt).toLocaleString() : 'N/A'],
@@ -186,10 +187,10 @@ export default function DailyReport() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-              <StatBox label="Daily Total" value={report.report.dailyTotal?.toLocaleString()} unit="L" icon={<Droplets size={20} />} color="#2E3A8C" />
-              <StatBox label="Avg Flow Rate" value={report.report.avgFlowRate?.toFixed(2)} unit="L/min" icon={<Activity size={20} />} color="#10b981" />
-              <StatBox label="Max Flow Rate" value={report.report.maxFlowRate?.toFixed(2)} unit="L/min" icon={<TrendingUp size={20} />} color="#f59e0b" />
-              <StatBox label="Min Flow Rate" value={report.report.minFlowRate?.toFixed(2)} unit="L/min" icon={<TrendingDown size={20} />} color="#6366f1" />
+              <StatBox label="Daily Total" value={fmtVolume(report.report.dailyTotal)} unit={VOLUME_UNIT} icon={<Droplets size={20} />} color="#2E3A8C" />
+              <StatBox label="Avg Flow Rate" value={fmtFlow(report.report.avgFlowRate)} unit={FLOW_UNIT} icon={<Activity size={20} />} color="#10b981" />
+              <StatBox label="Max Flow Rate" value={fmtFlow(report.report.maxFlowRate)} unit={FLOW_UNIT} icon={<TrendingUp size={20} />} color="#f59e0b" />
+              <StatBox label="Min Flow Rate" value={fmtFlow(report.report.minFlowRate)} unit={FLOW_UNIT} icon={<TrendingDown size={20} />} color="#6366f1" />
             </div>
 
             {/* Flow Rate Summary Chart */}
@@ -201,7 +202,7 @@ export default function DailyReport() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(v) => [`${v} L/min`]} />
+                    <Tooltip formatter={(v) => [`${v} ${FLOW_UNIT}`]} />
                     <Bar dataKey="value" fill="#2E3A8C" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -217,10 +218,10 @@ export default function DailyReport() {
                 <table className="w-full text-sm">
                   <tbody>
                     {[
-                      ['Daily Total', `${report.report.dailyTotal?.toLocaleString()} L`],
-                      ['Average Flow Rate', `${report.report.avgFlowRate?.toFixed(2)} L/min`],
-                      ['Maximum Flow Rate', `${report.report.maxFlowRate?.toFixed(2)} L/min`],
-                      ['Minimum Flow Rate', `${report.report.minFlowRate?.toFixed(2)} L/min`],
+                      ['Daily Total', `${fmtVolume(report.report.dailyTotal)} ${VOLUME_UNIT}`],
+                      ['Average Flow Rate', `${fmtFlow(report.report.avgFlowRate)} ${FLOW_UNIT}`],
+                      ['Maximum Flow Rate', `${fmtFlow(report.report.maxFlowRate)} ${FLOW_UNIT}`],
+                      ['Minimum Flow Rate', `${fmtFlow(report.report.minFlowRate)} ${FLOW_UNIT}`],
                       ['Total Readings', report.report.totalReadings],
                       ['First Reading At', report.report.firstReadingAt ? new Date(report.report.firstReadingAt).toLocaleString() : 'N/A'],
                       ['Last Reading At', report.report.lastReadingAt ? new Date(report.report.lastReadingAt).toLocaleString() : 'N/A'],

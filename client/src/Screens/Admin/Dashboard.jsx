@@ -7,6 +7,7 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3, fmtFlow, fmtVolume } from '../../utils/units';
 
 const STATUS_COLORS = { online: '#10b981', offline: '#ef4444', inactive: '#94a3b8' };
 const PIE_COLORS = ['#10b981', '#ef4444', '#94a3b8'];
@@ -73,7 +74,7 @@ export default function Dashboard() {
   const statCards = [
     {
       title: 'Total Totalizer',
-      value: `${totalTotalizer.toLocaleString()} L`,
+      value: `${fmtVolume(totalTotalizer)} ${VOLUME_UNIT}`,
       change: 'All Tanks',
       icon: <Gauge size={24} />,
       color: 'from-blue-600 to-cyan-500',
@@ -122,12 +123,12 @@ export default function Dashboard() {
   const totalizerChartData = tanks
     .filter((t) => t.latestData?.totalizer)
     .slice(0, 12)
-    .map((t) => ({ name: t.tankName, totalizer: t.latestData.totalizer }));
+    .map((t) => ({ name: t.tankName, totalizer: toM3(t.latestData.totalizer) }));
 
   const flowRateChartData = tanks
     .filter((t) => t.latestData?.flowRate != null)
     .slice(0, 12)
-    .map((t) => ({ name: t.tankName, flowRate: Number(t.latestData.flowRate.toFixed(2)) }));
+    .map((t) => ({ name: t.tankName, flowRate: toM3h(t.latestData.flowRate) }));
 
   if (loading && tanks.length === 0) {
     return (
@@ -193,7 +194,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(v) => [`${v.toLocaleString()} L`, 'Totalizer']} />
+                    <Tooltip formatter={(v) => [`${v.toLocaleString()} ${VOLUME_UNIT}`, 'Totalizer']} />
                     <Bar dataKey="totalizer" fill="#2E3A8C" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -236,7 +237,7 @@ export default function Dashboard() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h3 className="text-xl font-semibold text-slate-900">Live Flow Rate</h3>
-              <p className="mt-1 text-sm text-slate-500">Current flow rate (L/min) across tanks</p>
+              <p className="mt-1 text-sm text-slate-500">Current flow rate ({FLOW_UNIT}) across tanks</p>
             </div>
           </div>
           {flowRateChartData.length > 0 ? (
@@ -252,7 +253,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(v) => [`${v} L/min`, 'Flow Rate']} />
+                  <Tooltip formatter={(v) => [`${v} ${FLOW_UNIT}`, 'Flow Rate']} />
                   <Area type="monotone" dataKey="flowRate" stroke="#2E3A8C" strokeWidth={2.5} fill="url(#flowGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -317,10 +318,10 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-3 text-right text-slate-700">
-                        {tank.latestData ? `${tank.latestData.flowRate ?? '-'} L/min` : '—'}
+                        {tank.latestData ? `${fmtFlow(tank.latestData.flowRate) ?? '-'} ${FLOW_UNIT}` : '—'}
                       </td>
                       <td className="px-6 py-3 text-right text-slate-700">
-                        {tank.latestData ? `${tank.latestData.totalizer?.toLocaleString() ?? '-'} L` : '—'}
+                        {tank.latestData ? `${fmtVolume(tank.latestData.totalizer) ?? '-'} ${VOLUME_UNIT}` : '—'}
                       </td>
                       <td className="px-6 py-3 text-right text-slate-700">
                         {tank.latestData?.waterLevelPercent != null ? `${tank.latestData.waterLevelPercent}%` : '—'}

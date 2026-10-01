@@ -8,7 +8,7 @@ import ErrorState from '../../../components/common/ErrorState';
 import BarChartCard from '../../../components/charts/BarChartCard';
 import { colors, spacing } from '../../../config/theme';
 import { getMonthlyReport } from '../../../api/reports.api';
-import { formatNumber } from '../../../utils/formatters';
+import { VOLUME_UNIT, formatVolume, toM3 } from '../../../utils/formatters';
 
 export default function MonthlyReportView({ tankId }) {
   const [month, setMonth] = useState(new Date());
@@ -44,15 +44,15 @@ export default function MonthlyReportView({ tankId }) {
       ) : (
         <>
           <View style={styles.statGrid}>
-            <StatCard label="Monthly Total" value={formatNumber(report?.monthlyTotal)} unit="L" accent={colors.primary} />
+            <StatCard label="Monthly Total" value={formatVolume(report?.monthlyTotal)} unit={VOLUME_UNIT} accent={colors.primary} />
           </View>
           <BarChartCard
             title="Daily Totals This Month"
-            unit="L"
+            unit={VOLUME_UNIT}
             color={colors.navy}
             series={(report?.dailyBreakdown ?? []).map((d) => ({
               label: dayjs(d.date).format('D'),
-              value: d.dailyTotal ?? 0,
+              value: toM3(d.dailyTotal) ?? 0,
             }))}
           />
         </>

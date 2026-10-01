@@ -12,7 +12,9 @@ import { getDashboardTank } from '../../api/dashboard.api';
 import { getReadingHistory } from '../../api/iot.api';
 import { getSocket } from '../../api/socket';
 import { useAuth } from '../../context/AuthContext';
-import { formatDateTime, formatNumber, formatTime } from '../../utils/formatters';
+import {
+  FLOW_UNIT, VOLUME_UNIT, formatDateTime, formatFlow, formatNumber, formatTime, formatVolume, toM3, toM3h,
+} from '../../utils/formatters';
 
 const MAX_HISTORY_POINTS = 288; // 24h at 5-min cadence, matches web client
 
@@ -88,8 +90,8 @@ export default function TankDetailScreen({ route, navigation }) {
       setHistory((prev) => {
         const point = {
           time: formatTime(payload.timestamp),
-          flowRate: Number((payload.flowRate || 0).toFixed(2)),
-          totalizer: payload.totalizer || 0,
+          flowRate: toM3h(payload.flowRate) ?? 0,
+          totalizer: toM3(payload.totalizer) ?? 0,
           waterLevelPercent: payload.waterLevelPercent ?? null,
           timestamp: new Date(payload.timestamp).getTime(),
         };
@@ -152,8 +154,8 @@ export default function TankDetailScreen({ route, navigation }) {
       </Card>
 
       <View style={styles.statGrid}>
-        <StatCard label="Flow Rate" value={formatNumber(latestData?.flowRate)} unit="L/min" accent={colors.primary} />
-        <StatCard label="Totalizer" value={formatNumber(latestData?.totalizer)} unit="L" accent={colors.navy} />
+        <StatCard label="Flow Rate" value={formatFlow(latestData?.flowRate)} unit={FLOW_UNIT} accent={colors.primary} />
+        <StatCard label="Totalizer" value={formatVolume(latestData?.totalizer)} unit={VOLUME_UNIT} accent={colors.navy} />
       </View>
       <View style={styles.statGridSingle}>
         <StatCard
@@ -166,13 +168,13 @@ export default function TankDetailScreen({ route, navigation }) {
 
       <LineChartCard
         title="Flow Rate (24h)"
-        unit="L/min"
+        unit={FLOW_UNIT}
         color={colors.primary}
         series={history.map((h) => ({ label: h.time, value: h.flowRate }))}
       />
       <LineChartCard
         title="Totalizer (24h)"
-        unit="L"
+        unit={VOLUME_UNIT}
         color={colors.navy}
         series={history.map((h) => ({ label: h.time, value: h.totalizer }))}
       />
@@ -184,8 +186,8 @@ function formatHistory(records) {
   return (records ?? [])
     .map((r) => ({
       time: formatTime(r.timestamp),
-      flowRate: Number((r.flowRate || 0).toFixed(2)),
-      totalizer: r.totalizer || 0,
+      flowRate: toM3h(r.flowRate) ?? 0,
+      totalizer: toM3(r.totalizer) ?? 0,
       waterLevelPercent: r.waterLevelPercent ?? null,
       timestamp: new Date(r.timestamp).getTime(),
     }))

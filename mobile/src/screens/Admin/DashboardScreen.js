@@ -11,7 +11,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { colors, spacing } from '../../config/theme';
 import { useApi } from '../../hooks/useApi';
 import { getDashboardOverview } from '../../api/dashboard.api';
-import { formatNumber } from '../../utils/formatters';
+import { VOLUME_UNIT, formatVolume } from '../../utils/formatters';
 
 const AUTO_REFRESH_MS = 60000;
 
@@ -48,7 +48,7 @@ export default function DashboardScreen({ navigation }) {
         <StatCard label="Inactive" value={summary.inactive} accent={colors.inactive} />
       </View>
       <View style={styles.statGridSingle}>
-        <StatCard label="Total Totalizer" value={formatNumber(totalTotalizer)} unit="L" accent={colors.navy} />
+        <StatCard label="Total Totalizer" value={formatVolume(totalTotalizer)} unit={VOLUME_UNIT} accent={colors.navy} />
       </View>
 
       <PieChartCard

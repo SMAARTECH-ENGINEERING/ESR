@@ -9,7 +9,7 @@ import EmptyState from '../../../components/common/EmptyState';
 import Card from '../../../components/common/Card';
 import { colors, spacing, typography } from '../../../config/theme';
 import { getDailyReport } from '../../../api/reports.api';
-import { formatDateTime, formatNumber } from '../../../utils/formatters';
+import { FLOW_UNIT, VOLUME_UNIT, formatDateTime, formatFlow, formatVolume } from '../../../utils/formatters';
 
 export default function DailyReportView({ tankId }) {
   const [date, setDate] = useState(new Date());
@@ -47,12 +47,12 @@ export default function DailyReportView({ tankId }) {
       ) : (
         <>
           <View style={styles.statGrid}>
-            <StatCard label="Daily Total" value={formatNumber(report.dailyTotal)} unit="L" accent={colors.primary} />
-            <StatCard label="Avg Flow Rate" value={formatNumber(report.avgFlowRate)} unit="L/min" accent={colors.navy} />
+            <StatCard label="Daily Total" value={formatVolume(report.dailyTotal)} unit={VOLUME_UNIT} accent={colors.primary} />
+            <StatCard label="Avg Flow Rate" value={formatFlow(report.avgFlowRate)} unit={FLOW_UNIT} accent={colors.navy} />
           </View>
           <View style={styles.statGrid}>
-            <StatCard label="Max Flow Rate" value={formatNumber(report.maxFlowRate)} unit="L/min" accent={colors.success} />
-            <StatCard label="Min Flow Rate" value={formatNumber(report.minFlowRate)} unit="L/min" accent={colors.warning} />
+            <StatCard label="Max Flow Rate" value={formatFlow(report.maxFlowRate)} unit={FLOW_UNIT} accent={colors.success} />
+            <StatCard label="Min Flow Rate" value={formatFlow(report.minFlowRate)} unit={FLOW_UNIT} accent={colors.warning} />
           </View>
 
           <Card style={styles.metaCard}>

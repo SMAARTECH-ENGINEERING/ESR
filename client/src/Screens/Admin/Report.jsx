@@ -4,6 +4,7 @@ import { MapPin, Wifi, WifiOff, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SkeletonCard from '../../Components/Admin/SkeletonCard';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, fmtFlow, fmtVolume } from '../../utils/units';
 
 const STATUS_STYLES = {
   online: { dot: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-50 border-emerald-200' },
@@ -47,13 +48,13 @@ function TankCard({ tank, onClick }) {
           <div className="bg-blue-50 rounded-lg p-2 text-center">
             <p className="text-[10px] text-blue-500 font-medium uppercase tracking-wide">Flow Rate</p>
             <p className="text-sm font-bold text-blue-700">
-              {tank.latestData?.flowRate != null ? `${tank.latestData.flowRate} L/m` : '—'}
+              {tank.latestData?.flowRate != null ? `${fmtFlow(tank.latestData.flowRate)} ${FLOW_UNIT}` : '—'}
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-2 text-center">
             <p className="text-[10px] text-emerald-500 font-medium uppercase tracking-wide">Totalizer</p>
             <p className="text-sm font-bold text-emerald-700">
-              {tank.latestData?.totalizer != null ? `${(tank.latestData.totalizer / 1000).toFixed(1)}kL` : '—'}
+              {tank.latestData?.totalizer != null ? `${fmtVolume(tank.latestData.totalizer)} ${VOLUME_UNIT}` : '—'}
             </p>
           </div>
           <div className="bg-amber-50 rounded-lg p-2 text-center">

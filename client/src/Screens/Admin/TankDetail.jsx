@@ -10,6 +10,7 @@ import io from 'socket.io-client';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3, fmtFlow, fmtVolume } from '../../utils/units';
 import ReadingsTable from '../../Components/Admin/ReadingsTable';
 
 const RANGES = [
@@ -78,9 +79,9 @@ const CustomTooltip = ({ active, payload }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3 text-xs space-y-0.5">
       <p className="text-slate-500 font-semibold mb-1.5">{new Date(p.t).toLocaleString()}</p>
-      <p className="font-bold text-[#2E3A8C]">Avg Flow: {p.flowAvg ?? '—'} L/min</p>
-      <p className="text-slate-500">Max Flow: {p.flowMax ?? '—'} L/min</p>
-      <p className="font-bold text-emerald-600">Totalizer: {p.totalizer?.toLocaleString() ?? '—'} L</p>
+      <p className="font-bold text-[#2E3A8C]">Avg Flow: {p.flowAvg ?? '—'} {FLOW_UNIT}</p>
+      <p className="text-slate-500">Max Flow: {p.flowMax ?? '—'} {FLOW_UNIT}</p>
+      <p className="font-bold text-emerald-600">Totalizer: {p.totalizer?.toLocaleString() ?? '—'} {VOLUME_UNIT}</p>
       {p.level != null && <p className="text-amber-600">Water Level: {p.level}%</p>}
       <p className="text-slate-400">{p.count} reading{p.count === 1 ? '' : 's'}</p>
     </div>
@@ -142,7 +143,13 @@ export default function TankDetail() {
       const { points, bucketMinutes } = res.data.data;
       setChart({
         bucketMinutes,
-        points: points.map((p) => ({ ...p, label: formatBucket(p.t, bucketMinutes) })),
+        points: points.map((p) => ({
+          ...p,
+          flowAvg: toM3h(p.flowAvg),
+          flowMax: toM3h(p.flowMax),
+          totalizer: toM3(p.totalizer),
+          label: formatBucket(p.t, bucketMinutes),
+        })),
       });
       lastChartFetch.current = Date.now();
     } catch (err) {
@@ -286,8 +293,8 @@ export default function TankDetail() {
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard
             label="Flow Rate"
-            value={latestData?.flowRate != null ? latestData.flowRate.toFixed(2) : null}
-            unit="L/min"
+            value={fmtFlow(latestData?.flowRate)}
+            unit={FLOW_UNIT}
             sub="Live"
             icon={<Droplets size={22} className="text-[#2E3A8C]" />}
             gradient="from-blue-50 to-cyan-100"
@@ -295,8 +302,8 @@ export default function TankDetail() {
           />
           <MetricCard
             label="Totalizer"
-            value={latestData?.totalizer != null ? latestData.totalizer.toLocaleString() : null}
-            unit="L"
+            value={fmtVolume(latestData?.totalizer)}
+            unit={VOLUME_UNIT}
             sub="Cumulative"
             icon={<Activity size={22} className="text-emerald-600" />}
             gradient="from-emerald-50 to-green-100"
@@ -394,7 +401,7 @@ export default function TankDetail() {
                     tick={{ fill: '#64748b', fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
-                    label={{ value: 'L/min', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10, dx: -4 }}
+                    label={{ value: FLOW_UNIT, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10, dx: -4 }}
                   />
                   <YAxis
                     yAxisId="right"
@@ -402,7 +409,7 @@ export default function TankDetail() {
                     tick={{ fill: '#64748b', fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
-                    label={{ value: 'L', angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10, dx: 4 }}
+                    label={{ value: VOLUME_UNIT, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10, dx: 4 }}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend

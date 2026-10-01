@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Card from '../common/Card';
 import StatusBadge from '../common/StatusBadge';
 import { colors, spacing, typography } from '../../config/theme';
-import { formatNumber, relativeFromNow } from '../../utils/formatters';
+import { FLOW_UNIT, VOLUME_UNIT, formatFlow, formatNumber, formatVolume, relativeFromNow } from '../../utils/formatters';
 
 // tank: { _id, tankName, deviceId, location, status, lastSeen, latestData? }
 export default function TankCard({ tank, onPress }) {
@@ -24,8 +24,8 @@ export default function TankCard({ tank, onPress }) {
       </View>
 
       <View style={styles.metrics}>
-        <Metric label="Flow Rate" value={formatNumber(latest?.flowRate)} unit="L/min" />
-        <Metric label="Totalizer" value={formatNumber(latest?.totalizer)} unit="L" />
+        <Metric label="Flow Rate" value={formatFlow(latest?.flowRate)} unit={FLOW_UNIT} />
+        <Metric label="Totalizer" value={formatVolume(latest?.totalizer)} unit={VOLUME_UNIT} />
         <Metric
           label="Level"
           value={latest?.waterLevelPercent != null ? formatNumber(latest.waterLevelPercent, 0) : '--'}

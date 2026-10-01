@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3 } from '../../utils/units';
 
 // Server-paginated list of raw device readings with tank + date filters.
 // Pass `tankId` to lock the table to one tank (Tank Detail page).
@@ -118,8 +119,8 @@ export default function ReadingsTable({ tankId: fixedTankId, title = 'Readings' 
     return data;
   };
 
-  const HEADERS = ['Date & Time', 'Tank', 'Device ID', 'Flow Rate (L/min)', 'Totalizer (L)', 'Water Level (%)'];
-  const toRow = (r) => [fmtTime(r.timestamp), r.tankName, r.deviceId, r.flowRate, r.totalizer, r.waterLevelPercent ?? ''];
+  const HEADERS = ['Date & Time', 'Tank', 'Device ID', 'Flow Rate (m3/h)', 'Totalizer (m3)', 'Water Level (%)'];
+  const toRow = (r) => [fmtTime(r.timestamp), r.tankName, r.deviceId, toM3h(r.flowRate), toM3(r.totalizer), r.waterLevelPercent ?? ''];
   const fileBase = () => `readings-${from || 'all'}${to ? `_to_${to}` : ''}`;
 
   const doExport = async (kind) => {
@@ -169,16 +170,16 @@ export default function ReadingsTable({ tankId: fixedTankId, title = 'Readings' 
       ),
     }]),
     {
-      name: 'Flow Rate (L/min)',
+      name: `Flow Rate (${FLOW_UNIT})`,
       right: true,
       selector: (r) => r.flowRate,
-      cell: (r) => <span className="font-semibold text-[#2E3A8C]">{fmtNum(r.flowRate)}</span>,
+      cell: (r) => <span className="font-semibold text-[#2E3A8C]">{fmtNum(toM3h(r.flowRate))}</span>,
     },
     {
-      name: 'Totalizer (L)',
+      name: `Totalizer (${VOLUME_UNIT})`,
       right: true,
       selector: (r) => r.totalizer,
-      cell: (r) => <span className="font-semibold text-emerald-600">{fmtNum(r.totalizer)}</span>,
+      cell: (r) => <span className="font-semibold text-emerald-600">{fmtNum(toM3(r.totalizer), 3)}</span>,
     },
     {
       name: 'Water Level (%)',

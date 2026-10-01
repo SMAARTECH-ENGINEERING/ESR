@@ -11,6 +11,7 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import api from '../../utils/api';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3, fmtFlow, fmtVolume } from '../../utils/units';
 
 const StatBox = ({ label, value, unit, icon, color }) => (
   <div className="border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
@@ -76,7 +77,7 @@ export default function WeeklyReport() {
   const totalReadings = dailyBreakdown.reduce((s, d) => s + (d.totalReadings || 0), 0);
   const maxDayTotal = dailyBreakdown.reduce((m, d) => Math.max(m, d.dailyTotal || 0), 0);
   const avgDailyFlow = dailyBreakdown.length
-    ? (dailyBreakdown.reduce((s, d) => s + (d.avgFlowRate || 0), 0) / dailyBreakdown.length).toFixed(2)
+    ? fmtFlow(dailyBreakdown.reduce((s, d) => s + (d.avgFlowRate || 0), 0) / dailyBreakdown.length)
     : null;
 
   const exportExcel = () => {
@@ -84,9 +85,9 @@ export default function WeeklyReport() {
     const ws = XLSX.utils.json_to_sheet(
       dailyBreakdown.map((d) => ({
         Date: d.date,
-        'Daily Total (L)': d.dailyTotal,
-        'Avg Flow Rate (L/min)': d.avgFlowRate,
-        'Max Flow Rate (L/min)': d.maxFlowRate,
+        'Daily Total (m3)': toM3(d.dailyTotal),
+        'Avg Flow Rate (m3/h)': toM3h(d.avgFlowRate),
+        'Max Flow Rate (m3/h)': toM3h(d.maxFlowRate),
         'Total Readings': d.totalReadings,
       }))
     );
@@ -101,12 +102,12 @@ export default function WeeklyReport() {
     doc.setFontSize(14);
     doc.text(`Weekly Report — ${report.weekStart} to ${report.weekEnd}`, 14, 15);
     doc.setFontSize(11);
-    doc.text(`Weekly Total: ${report.weeklyTotal?.toLocaleString()} L`, 14, 25);
+    doc.text(`Weekly Total: ${fmtVolume(report.weeklyTotal)} m3`, 14, 25);
     autoTable(doc, {
       startY: 32,
-      head: [['Date', 'Daily Total (L)', 'Avg Flow Rate', 'Max Flow Rate', 'Readings']],
+      head: [['Date', 'Daily Total (m3)', 'Avg Flow Rate (m3/h)', 'Max Flow Rate (m3/h)', 'Readings']],
       body: dailyBreakdown.map((d) => [
-        d.date, d.dailyTotal?.toLocaleString(), d.avgFlowRate?.toFixed(2), d.maxFlowRate?.toFixed(2), d.totalReadings,
+        d.date, fmtVolume(d.dailyTotal), fmtFlow(d.avgFlowRate), fmtFlow(d.maxFlowRate), d.totalReadings,
       ]),
     });
     doc.save(`weekly-report-${startDate}.pdf`);
@@ -188,9 +189,9 @@ export default function WeeklyReport() {
 
             {/* Summary Cards */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-              <StatBox label="Weekly Total" value={report.weeklyTotal?.toLocaleString()} unit="L" icon={<Droplets size={20} />} color="#2E3A8C" />
-              <StatBox label="Avg Daily Flow" value={avgDailyFlow} unit="L/min" icon={<Activity size={20} />} color="#10b981" />
-              <StatBox label="Peak Day Total" value={maxDayTotal?.toLocaleString()} unit="L" icon={<TrendingUp size={20} />} color="#f59e0b" />
+              <StatBox label="Weekly Total" value={fmtVolume(report.weeklyTotal)} unit={VOLUME_UNIT} icon={<Droplets size={20} />} color="#2E3A8C" />
+              <StatBox label="Avg Daily Flow" value={avgDailyFlow} unit={FLOW_UNIT} icon={<Activity size={20} />} color="#10b981" />
+              <StatBox label="Peak Day Total" value={fmtVolume(maxDayTotal)} unit={VOLUME_UNIT} icon={<TrendingUp size={20} />} color="#f59e0b" />
               <StatBox label="Total Readings" value={totalReadings} unit="" icon={<RefreshCw size={20} />} color="#6366f1" />
             </div>
 
@@ -200,11 +201,11 @@ export default function WeeklyReport() {
               {dailyBreakdown.length > 0 ? (
                 <div className="h-72 rounded border border-slate-100 bg-[#f8fbff] p-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dailyBreakdown.map((d) => ({ day: d.date?.slice(5), total: d.dailyTotal || 0 }))}>
+                    <BarChart data={dailyBreakdown.map((d) => ({ day: d.date?.slice(5), total: toM3(d.dailyTotal || 0) }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => [`${v.toLocaleString()} L`, 'Totalizer']} />
+                      <Tooltip formatter={(v) => [`${v.toLocaleString()} ${VOLUME_UNIT}`, 'Totalizer']} />
                       <Bar dataKey="total" fill="#2E3A8C" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -222,11 +223,11 @@ export default function WeeklyReport() {
               {dailyBreakdown.length > 0 ? (
                 <div className="h-64 rounded border border-slate-100 bg-[#f8fbff] p-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyBreakdown.map((d) => ({ day: d.date?.slice(5), avgFlow: Number((d.avgFlowRate || 0).toFixed(2)) }))}>
+                    <LineChart data={dailyBreakdown.map((d) => ({ day: d.date?.slice(5), avgFlow: toM3h(d.avgFlowRate || 0) }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => [`${v} L/min`, 'Avg Flow Rate']} />
+                      <Tooltip formatter={(v) => [`${v} ${FLOW_UNIT}`, 'Avg Flow Rate']} />
                       <Line type="monotone" dataKey="avgFlow" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -247,7 +248,7 @@ export default function WeeklyReport() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      {['Date', 'Daily Total (L)', 'Avg Flow (L/min)', 'Max Flow (L/min)', 'Readings'].map((h) => (
+                      {['Date', `Daily Total (${VOLUME_UNIT})`, `Avg Flow (${FLOW_UNIT})`, `Max Flow (${FLOW_UNIT})`, 'Readings'].map((h) => (
                         <th key={h} className="px-5 py-3 text-left font-semibold text-slate-600">{h}</th>
                       ))}
                     </tr>
@@ -259,9 +260,9 @@ export default function WeeklyReport() {
                       dailyBreakdown.map((d, i) => (
                         <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition">
                           <td className="px-5 py-3 font-medium text-slate-700">{d.date}</td>
-                          <td className="px-5 py-3 text-blue-600 font-semibold">{d.dailyTotal?.toLocaleString() ?? '—'}</td>
-                          <td className="px-5 py-3 text-emerald-600">{d.avgFlowRate?.toFixed(2) ?? '—'}</td>
-                          <td className="px-5 py-3 text-amber-600">{d.maxFlowRate?.toFixed(2) ?? '—'}</td>
+                          <td className="px-5 py-3 text-blue-600 font-semibold">{fmtVolume(d.dailyTotal) ?? '—'}</td>
+                          <td className="px-5 py-3 text-emerald-600">{fmtFlow(d.avgFlowRate) ?? '—'}</td>
+                          <td className="px-5 py-3 text-amber-600">{fmtFlow(d.maxFlowRate) ?? '—'}</td>
                           <td className="px-5 py-3 text-slate-500">{d.totalReadings ?? '—'}</td>
                         </tr>
                       ))

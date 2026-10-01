@@ -8,7 +8,7 @@ import ErrorState from '../../../components/common/ErrorState';
 import BarChartCard from '../../../components/charts/BarChartCard';
 import { colors, spacing } from '../../../config/theme';
 import { getWeeklyReport } from '../../../api/reports.api';
-import { formatNumber } from '../../../utils/formatters';
+import { VOLUME_UNIT, formatVolume, toM3 } from '../../../utils/formatters';
 
 export default function WeeklyReportView({ tankId }) {
   const [startDate, setStartDate] = useState(dayjs().startOf('week').toDate());
@@ -44,15 +44,15 @@ export default function WeeklyReportView({ tankId }) {
       ) : (
         <>
           <View style={styles.statGrid}>
-            <StatCard label="Weekly Total" value={formatNumber(report?.weeklyTotal)} unit="L" accent={colors.primary} />
+            <StatCard label="Weekly Total" value={formatVolume(report?.weeklyTotal)} unit={VOLUME_UNIT} accent={colors.primary} />
           </View>
           <BarChartCard
             title="Daily Totals This Week"
-            unit="L"
+            unit={VOLUME_UNIT}
             color={colors.navy}
             series={(report?.dailyBreakdown ?? []).map((d) => ({
               label: dayjs(d.date).format('ddd'),
-              value: d.dailyTotal ?? 0,
+              value: toM3(d.dailyTotal) ?? 0,
             }))}
           />
         </>

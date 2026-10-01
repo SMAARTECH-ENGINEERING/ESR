@@ -8,15 +8,15 @@ export function formatNumber(value, fractionDigits = 1) {
   });
 }
 
-// Devices report (and the server stores) flow in L/min and totalizer in litres.
-// The app displays flow in m³/h and volume in m³.
+// Devices report (and the server stores) flow already in m³/h — shown as-is,
+// never converted. Totalizer is stored in litres and displayed in m³.
 export const FLOW_UNIT = 'm³/h';
 export const VOLUME_UNIT = 'm³';
 
-// L/min → m³/h
-export function toM3h(lpm) {
-  if (lpm === null || lpm === undefined || Number.isNaN(Number(lpm))) return null;
-  return Number((Number(lpm) * 0.06).toFixed(2));
+// Flow is already m³/h: no conversion, only rounded for display
+export function toM3h(flow) {
+  if (flow === null || flow === undefined || Number.isNaN(Number(flow))) return null;
+  return Number(Number(flow).toFixed(2));
 }
 
 // litres → m³
@@ -25,8 +25,8 @@ export function toM3(litres) {
   return Number((Number(litres) / 1000).toFixed(3));
 }
 
-export function formatFlow(lpm) {
-  return formatNumber(toM3h(lpm), 2);
+export function formatFlow(flow) {
+  return formatNumber(toM3h(flow), 2);
 }
 
 export function formatVolume(litres) {

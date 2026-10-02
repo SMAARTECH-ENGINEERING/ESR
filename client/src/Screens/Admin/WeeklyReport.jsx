@@ -205,7 +205,7 @@ export default function WeeklyReport() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => [`${v.toLocaleString()} ${VOLUME_UNIT}`, 'Totalizer']} />
+                      <Tooltip formatter={(v) => [`${fmtVolume(v)} ${VOLUME_UNIT}`, 'Totalizer']} />
                       <Bar dataKey="total" fill="#2E3A8C" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

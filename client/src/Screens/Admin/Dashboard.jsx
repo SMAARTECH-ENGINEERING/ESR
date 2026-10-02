@@ -194,7 +194,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip formatter={(v) => [`${v.toLocaleString()} ${VOLUME_UNIT}`, 'Totalizer']} />
+                    <Tooltip formatter={(v) => [`${fmtVolume(v)} ${VOLUME_UNIT}`, 'Totalizer']} />
                     <Bar dataKey="totalizer" fill="#2E3A8C" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

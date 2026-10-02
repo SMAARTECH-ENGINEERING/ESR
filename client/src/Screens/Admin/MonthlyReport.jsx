@@ -226,7 +226,7 @@ export default function MonthlyReport() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => [`${v.toLocaleString()} ${VOLUME_UNIT}`, 'Daily Total']} />
+                      <Tooltip formatter={(v) => [`${fmtVolume(v)} ${VOLUME_UNIT}`, 'Daily Total']} />
                       <Area type="monotone" dataKey="total" stroke="#2E3A8C" strokeWidth={2.5} fill="url(#monthlyGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>

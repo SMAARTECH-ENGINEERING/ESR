@@ -81,7 +81,7 @@ const CustomTooltip = ({ active, payload }) => {
       <p className="text-slate-500 font-semibold mb-1.5">{new Date(p.t).toLocaleString()}</p>
       <p className="font-bold text-[#2E3A8C]">Avg Flow: {p.flowAvg ?? '—'} {FLOW_UNIT}</p>
       <p className="text-slate-500">Max Flow: {p.flowMax ?? '—'} {FLOW_UNIT}</p>
-      <p className="font-bold text-emerald-600">Totalizer: {p.totalizer?.toLocaleString() ?? '—'} {VOLUME_UNIT}</p>
+      <p className="font-bold text-emerald-600">Totalizer: {fmtVolume(p.totalizer) ?? '—'} {VOLUME_UNIT}</p>
       {p.level != null && <p className="text-amber-600">Water Level: {p.level}%</p>}
       <p className="text-slate-400">{p.count} reading{p.count === 1 ? '' : 's'}</p>
     </div>

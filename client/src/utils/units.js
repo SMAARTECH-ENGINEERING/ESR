@@ -8,10 +8,9 @@ export const VOLUME_UNIT = 'm³';
 export const toM3h = (flow) => (flow == null ? null : Number(Number(flow).toFixed(2)));
 
 // Totalizer is already m³: no conversion, only rounded for display
-export const toM3 = (volume) => (volume == null ? null : Number(Number(volume).toFixed(3)));
+export const toM3 = (volume) => (volume == null ? null : Number(Number(volume).toFixed(1)));
 
 // Display strings (undefined when there is no value, so `?? '—'` fallbacks work)
 export const fmtFlow = (flow) => (flow == null ? undefined : toM3h(flow).toFixed(2));
-export const fmtVolume = (volume) => (
-  volume == null ? undefined : toM3(volume).toLocaleString(undefined, { maximumFractionDigits: 3 })
-);
+// Volume is a plain number with one decimal (no thousands separators)
+export const fmtVolume = (volume) => (volume == null ? undefined : toM3(volume).toFixed(1));

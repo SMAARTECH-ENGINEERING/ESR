@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
-import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3 } from '../../utils/units';
+import { FLOW_UNIT, VOLUME_UNIT, toM3h, toM3, fmtVolume } from '../../utils/units';
 
 // Server-paginated list of raw device readings with tank + date filters.
 // Pass `tankId` to lock the table to one tank (Tank Detail page).
@@ -179,7 +179,7 @@ export default function ReadingsTable({ tankId: fixedTankId, title = 'Readings' 
       name: `Totalizer (${VOLUME_UNIT})`,
       right: true,
       selector: (r) => r.totalizer,
-      cell: (r) => <span className="font-semibold text-emerald-600">{fmtNum(toM3(r.totalizer), 3)}</span>,
+      cell: (r) => <span className="font-semibold text-emerald-600">{fmtVolume(r.totalizer) ?? '—'}</span>,
     },
     {
       name: 'Water Level (%)',

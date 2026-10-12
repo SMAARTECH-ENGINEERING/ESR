@@ -22,17 +22,17 @@ export function toM3h(flow) {
 // Totalizer is already m³: no conversion, only rounded for display
 export function toM3(volume) {
   if (volume === null || volume === undefined || Number.isNaN(Number(volume))) return null;
-  return Number(Number(volume).toFixed(1));
+  return Math.round(Number(volume));
 }
 
 export function formatFlow(flow) {
   return formatNumber(toM3h(flow), 2);
 }
 
-// Volume is a plain number with one decimal (no thousands separators)
+// Volume is a plain whole number (no decimals, no thousands separators)
 export function formatVolume(volume) {
   const m3 = toM3(volume);
-  return m3 === null ? '--' : m3.toFixed(1);
+  return m3 === null ? '--' : String(m3);
 }
 
 export function formatDateTime(value) {

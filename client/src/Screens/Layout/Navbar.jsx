@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { AiOutlineMenuUnfold } from 'react-icons/ai';
-import { MdMarkEmailUnread } from 'react-icons/md';
 import { FiSearch } from 'react-icons/fi';
 
 import AdminProfileDropDown from '../../Components/Admin/AdminProfileDropDown';
-import NotificationBell from '../../Components/Admin/Notifications/NotificationBell';
 
 const Navbar = ({ toggleSidebar }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [messages] = useState(2);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -51,20 +48,6 @@ const Navbar = ({ toggleSidebar }) => {
 
       {/* Right Side */}
       <div className="ml-auto flex items-center gap-5">
-
-        {/* Notifications */}
-        <NotificationBell />
-
-        {/* Messages */}
-        <div className="relative cursor-pointer hover:text-[#2E3A8C] transition">
-          <MdMarkEmailUnread size={24} />
-
-          {messages > 0 && (
-            <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
-              {messages}
-            </span>
-          )}
-        </div>
 
         {/* Profile */}
         <AdminProfileDropDown />
